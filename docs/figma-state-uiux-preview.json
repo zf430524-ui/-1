@@ -1,0 +1,27 @@
+{
+  "runId": "uiux-preview-2026-09-05",
+  "fileKey": "CJjOMO9CCnSim9oemtajPb",
+  "fileUrl": "https://www.figma.com/design/CJjOMO9CCnSim9oemtajPb",
+  "phase": "blocked",
+  "step": "figma-mcp-rate-limit",
+  "entities": {
+    "pages": {},
+    "screens": {}
+  },
+  "pendingValidations": [
+    "dashboard:screenshot",
+    "project-dispatch:screenshot",
+    "guide-mobile:screenshot",
+    "font:noto-sans-sc"
+  ],
+  "completedSteps": [
+    "discovery",
+    "scope-lock"
+  ],
+  "blocker": {
+    "message": "You've reached the Figma MCP tool call limit on the Starter plan.",
+    "occurredAtStep": "create-color-foundations",
+    "canvasWritesCompleted": false,
+    "resolution": "Wait for quota reset or upgrade the Figma plan, then retry the same foundations step."
+  }
+}
