@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="研学派团工作台本地交互演示" />
+  <title>研学派团工作台 · Demo</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">研学派团工作台<span>本地 Demo</span></div>
+      <nav id="nav" aria-label="管理端导航"></nav>
+      <div class="profile"><div class="avatar">田</div><div><strong>田主管</strong><small>运营部 · 管理端</small></div></div>
+    </aside>
+    <main class="main-content">
+      <header class="topbar"><div><p class="eyebrow">2026 年 9 月 7 日 · 星期一</p><h1 id="page-title">早上好，田主管</h1></div><div class="top-actions"><button class="ghost" data-action="toggle-guide">切换导游端</button><button class="primary" data-action="create-project">＋ 创建研学项目</button></div></header>
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+      <section id="app" aria-live="polite"></section>
+    </main>
+  </div>
+  <dialog id="project-dialog" class="modal">
+    <form method="dialog" id="project-form">
+      <div class="modal-head"><div><p class="eyebrow">新建草稿</p><h2>创建研学项目</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></div>
+      <label>项目名称<input name="name" required value="长沙县生态研学一日团" /></label>
+      <label>学校名称<input name="school" required value="长沙县实验学校" /></label>
+      <div class="form-grid"><label>开始日期<input name="startDate" type="date" required value="2026-09-28" /></label><label>结束日期<input name="endDate" type="date" required value="2026-09-28" /></label></div>
+      <label>班级数量<input name="classCount" type="number" min="1" max="20" required value="4" /></label>
+      <p class="hint">创建后进入草稿状态；班级人数需在项目详情中继续补齐。</p>
+      <div class="modal-actions"><button class="ghost" value="cancel">取消</button><button class="primary" value="default" data-action="submit-project">创建草稿</button></div>
+    </form>
+  </dialog>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

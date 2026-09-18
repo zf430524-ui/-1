@@ -1,0 +1,33 @@
+.recruitment-summary { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.recruitment-summary h2 { margin: 5px 0; color: var(--navy); }
+.recruitment-summary p { margin: 0; color: var(--muted); }
+.recruitment-summary-metrics { display: flex; gap: 8px; flex-wrap: wrap; }
+.recruitment-summary-metrics span { display: grid; min-width: 96px; padding: 10px 13px; background: var(--soft); border-radius: 7px; color: #70808c; font-size: 11px; }
+.recruitment-summary-metrics b { color: var(--navy); font-size: 18px; }
+.recruitment-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+.notice-builder, .signup-import { min-width: 0; }
+.boundary-chip { padding: 5px 9px; border-radius: 999px; background: #e5f5ef; color: #16765e; font-size: 11px; font-weight: 700; }
+#notice-form, #signup-form { display: grid; gap: 13px; }
+.notice-settings { display: grid; grid-template-columns: 1fr 130px; gap: 10px; align-items: end; }
+.notice-settings .check-line { min-height: 36px; }
+#notice-output, #signup-form textarea { font-family: "Microsoft YaHei UI", sans-serif; line-height: 1.7; }
+.notice-actions, .signup-actions { display: flex; justify-content: flex-end; align-items: center; gap: 9px; }
+.notice-actions #copy-status { margin-right: auto; color: #16765e; font-size: 12px; }
+.recruitment-preview { display: grid; gap: 12px; }
+.preview-counts { display: flex; gap: 12px; font-size: 12px; }
+.success-text { color: #188359; }.warning-text { color: #a4610c; }
+.recruitment-table, .recruitment-preview-row { display: grid; grid-template-columns: 130px minmax(180px, .8fr) 110px minmax(260px, 1.2fr); gap: 12px; align-items: center; }
+.recruitment-table-head { padding: 9px 12px; border-top: 1px solid #e2e9ec; border-bottom: 1px solid #e2e9ec; color: #7c8994; font-size: 11px; font-weight: 700; }
+.recruitment-preview-row { padding: 13px 12px; border-bottom: 1px solid #e5ebee; }
+.recruitment-preview-row > div:first-child, .recruitment-preview-row > div:nth-child(2) { display: grid; gap: 4px; }
+.recruitment-preview-row b { color: var(--teal); font-size: 17px; }.recruitment-preview-row strong { color: var(--navy); }.recruitment-preview-row small, .recruitment-preview-row span { font-size: 11px; color: #71808d; }
+.resolution-controls { display: grid; gap: 7px; }.resolution-controls select { width: 100%; height: 38px; border: 1px solid #d2dde3; border-radius: 7px; background: #fff; padding: 7px 9px; }
+.matched-guide { color: #188359 !important; font-weight: 700; }
+.confirm-recruitment { display: flex; align-items: center; gap: 12px; justify-content: flex-end; padding-top: 8px; }.confirm-recruitment p:first-child { margin-right: auto; max-width: 650px; color: #657481; font-size: 12px; }.confirm-recruitment .form-error { margin: 0; }
+.recruitment-history { display: grid; gap: 10px; }
+.recruitment-batch { border-top: 1px solid #e2e9ec; padding: 11px 0; }.recruitment-batch summary { cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px; }.recruitment-batch summary > span:first-child { display: grid; gap: 3px; }.recruitment-batch summary small { color: #7a8792; }
+.batch-rows { display: grid; margin-top: 10px; padding: 8px 12px; background: var(--soft); border-radius: 7px; }.batch-rows div { display: grid; grid-template-columns: 1fr 150px 90px; gap: 10px; align-items: center; padding: 7px 0; border-top: 1px solid #dfe7ea; }.batch-rows div:first-child { border-top: 0; }
+.recruitment-picker form { width: min(520px, 100%); display: flex; gap: 10px; align-items: end; }.recruitment-picker .field { flex: 1; }.recruitment-picker select, #signup-form select { height: 42px; border: 1px solid #d2dde3; border-radius: 7px; background: #fff; padding: 8px; }
+.empty-compact { padding: 24px; text-align: center; color: var(--muted); }
+@media (max-width: 1050px) { .recruitment-workspace { grid-template-columns: 1fr; }.recruitment-table-head { display: none; }.recruitment-preview-row { grid-template-columns: 90px 1fr 110px; }.recruitment-preview-row .resolution-controls, .recruitment-preview-row .matched-guide { grid-column: 1 / -1; } }
+@media (max-width: 680px) { .recruitment-summary { align-items: flex-start; flex-direction: column; }.notice-settings, .recruitment-preview-row { grid-template-columns: 1fr; }.confirm-recruitment, .notice-actions, .signup-actions { align-items: stretch; flex-direction: column; }.batch-rows div { grid-template-columns: 1fr; }.recruitment-picker form { align-items: stretch; flex-direction: column; } }

@@ -1,0 +1,27 @@
+{
+  "name": "study-tour-workbench-v1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node src/server/index.mjs --allow-dev-unlock",
+    "start": "node src/server/index.mjs",
+    "start:legacy": "node server.mjs",
+    "db:migrate": "node scripts/migrate.mjs",
+    "test": "npm run test:unit && npm run test:integration && npm run test:e2e",
+    "test:unit": "node --test tests/unit/*.test.mjs",
+    "test:integration": "node --test tests/integration/*.test.mjs",
+    "test:e2e": "node --test --test-concurrency=1 tests/e2e/*.test.mjs",
+    "test:database": "node --test tests/database/*.test.mjs",
+    "test:legacy": "node tests/acceptance.test.mjs",
+    "check": "node scripts/run-check.mjs",
+    "check:base": "node --check public/app.js && node --check public/pages.js && node --check public/dev-progress.js && node --check scripts/run-check.mjs && node --check src/db/migrate.mjs && node --check src/db/migrations/001-initial.mjs && node --check src/db/migrations/002-import-workflow.mjs && node --check src/db/migrations/003-business-workflow.mjs && node --check src/db/migrations/004-guide-library.mjs && node --check src/db/migrations/005-recruitment-batches.mjs && node --check src/db/migrations/006-transport-planning.mjs && node --check src/db/migrations/007-meal-participation-overrides.mjs && node --check src/db/repositories/business.mjs && node --check src/db/repositories/guides.mjs && node --check src/db/repositories/records.mjs && node --check src/services/business.mjs && node --check src/services/development-progress.mjs && node --check src/services/guides.mjs && node --check src/services/guide-files.mjs && node --check src/services/sensitive-values.mjs && node --check src/services/exports.mjs && node --check src/services/records.mjs && node --check src/imports/targets.mjs && node --check src/imports/parsers.mjs && node --check src/services/imports.mjs && node --check src/server/auth.mjs && node --check src/services/backups.mjs && node --check src/server/index.mjs && npm run test && npm run test:database"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "exceljs": "^4.4.0",
+    "mammoth": "^1.12.3"
+  },
+  "overrides": {
+    "uuid": "11.1.1"
+  }
+}

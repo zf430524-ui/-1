@@ -1,0 +1,3006 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>研学团负责人工作台 v1 Demo</title>
+<style>
+/* =============================================
+   研学团负责人工作台 - 全功能 Demo
+   风格：运营指挥台（PRD D008 确认）
+   技术：纯 HTML + CSS + JavaScript 单文件
+   ============================================= */
+
+:root {
+  --bg: #f0f2f5;
+  --sidebar-bg: #1a2a3a;
+  --sidebar-hover: #243448;
+  --sidebar-active: #2a7dd4;
+  --card-bg: #ffffff;
+  --primary: #2a9d8f;
+  --primary-dark: #1e7d74;
+  --danger: #e63946;
+  --warning: #f4a261;
+  --info: #457b9d;
+  --text: #1a2a3a;
+  --text-muted: #6c757d;
+  --border: #dde1e7;
+  --shadow: 0 2px 8px rgba(26,42,58,0.08);
+  --radius: 8px;
+  --sidebar-width: 220px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* === 整体布局 === */
+.app-layout {
+  display: flex;
+  height: 100vh;
+}
+
+/* === 侧边导航 === */
+.sidebar {
+  width: var(--sidebar-width);
+  background: var(--sidebar-bg);
+  color: #c8d6e5;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow-y: auto;
+}
+
+.sidebar-logo {
+  padding: 20px 16px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.sidebar-logo h1 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.4;
+}
+
+.sidebar-logo span {
+  font-size: 11px;
+  color: #6b8cae;
+}
+
+.sidebar-nav { flex: 1; padding: 8px 0; }
+
+.nav-section {
+  margin-bottom: 4px;
+}
+
+.nav-section-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #4a6a8a;
+  padding: 10px 16px 4px;
+  font-weight: 600;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: all 0.15s;
+  font-size: 13px;
+  user-select: none;
+}
+
+.nav-item:hover { background: var(--sidebar-hover); color: #fff; }
+
+.nav-item.active {
+  background: rgba(42,125,212,0.15);
+  border-left-color: var(--primary);
+  color: #fff;
+}
+
+.nav-item .badge {
+  margin-left: auto;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--danger);
+  color: #fff;
+}
+
+.nav-item .badge.warn { background: var(--warning); color: #1a2a3a; }
+.nav-item .badge.ok { background: var(--primary); }
+
+/* === 主内容区 === */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.main-header {
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.main-header h2 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.header-status {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.header-status .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+  display: inline-block;
+}
+
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+/* === 页面通用组件 === */
+.page-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* === 卡片 === */
+.card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+}
+
+.card-header {
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-header h3 { font-size: 14px; font-weight: 600; }
+
+.card-body { padding: 20px; }
+
+/* === 指标卡 === */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  padding: 18px 20px;
+  border-left: 4px solid var(--primary);
+}
+
+.stat-card.danger { border-left-color: var(--danger); }
+.stat-card.warning { border-left-color: var(--warning); }
+.stat-card.info { border-left-color: var(--info); }
+
+.stat-label { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+.stat-value { font-size: 28px; font-weight: 700; }
+.stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+/* === 表格 === */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th {
+  background: #f7f9fc;
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+tbody tr:hover { background: #f7f9fc; }
+tbody tr:last-child td { border-bottom: none; }
+
+/* === 按钮 === */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+  font-family: inherit;
+  text-decoration: none;
+}
+
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--text); }
+.btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* === 表单 === */
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text); }
+.form-label .req { color: var(--danger); margin-left: 2px; }
+.form-control {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  transition: border-color 0.15s;
+  background: #fff;
+}
+.form-control:focus { outline: none; border-color: var(--primary); }
+.form-control.error { border-color: var(--danger); }
+.form-control:disabled { background: #f7f9fc; color: var(--text-muted); }
+select.form-control { cursor: pointer; }
+textarea.form-control { resize: vertical; min-height: 80px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.form-error { font-size: 11px; color: var(--danger); margin-top: 4px; }
+
+/* === 标签/状态 === */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  gap: 4px;
+}
+.tag-primary { background: rgba(42,157,143,0.12); color: var(--primary); }
+.tag-danger { background: rgba(230,57,70,0.12); color: var(--danger); }
+.tag-warning { background: rgba(244,162,97,0.15); color: #c0620f; }
+.tag-info { background: rgba(69,123,157,0.12); color: var(--info); }
+.tag-gray { background: #f0f2f5; color: var(--text-muted); }
+
+/* === 异常提示条 === */
+.alert {
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.alert-danger { background: rgba(230,57,70,0.08); border: 1px solid rgba(230,57,70,0.25); color: #c01220; }
+.alert-warning { background: rgba(244,162,97,0.1); border: 1px solid rgba(244,162,97,0.3); color: #8c4a0a; }
+.alert-success { background: rgba(42,157,143,0.1); border: 1px solid rgba(42,157,143,0.25); color: #1a6b62; }
+.alert-info { background: rgba(69,123,157,0.1); border: 1px solid rgba(69,123,157,0.25); color: var(--info); }
+
+/* === 步骤条 === */
+.step-bar {
+  display: flex;
+  gap: 0;
+  margin-bottom: 24px;
+  background: #f0f2f5;
+  border-radius: 8px;
+  padding: 4px;
+  overflow-x: auto;
+}
+.step-item {
+  flex: 1;
+  min-width: 80px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.step-item.active { background: var(--primary); color: #fff; font-weight: 600; }
+.step-item.done { background: var(--card-bg); color: var(--primary); border: 1px solid var(--primary); }
+.step-item.warning { background: rgba(244,162,97,0.15); color: #c0620f; }
+.step-item .step-num {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: currentColor;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  margin-right: 4px;
+}
+
+/* === Tabs === */
+.tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 20px;
+}
+.tab-btn {
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+/* === 模态框 === */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(26,42,58,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+.modal {
+  background: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(26,42,58,0.2);
+  max-width: 680px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal-lg { max-width: 900px; }
+.modal-header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.modal-header h3 { font-size: 16px; font-weight: 700; }
+.modal-body { padding: 20px 24px; }
+.modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.modal-close {
+  background: none; border: none;
+  font-size: 22px; cursor: pointer;
+  color: var(--text-muted);
+  line-height: 1;
+}
+
+/* === 空状态 === */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+}
+.empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+.empty-state p { font-size: 14px; margin-bottom: 16px; }
+
+/* === 进度条 === */
+.progress-wrap { margin-bottom: 16px; }
+.progress-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; }
+.progress-bar { height: 8px; background: #e9ecef; border-radius: 4px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 4px; background: var(--primary); transition: width 0.4s; }
+.progress-fill.danger { background: var(--danger); }
+.progress-fill.warning { background: var(--warning); }
+
+/* === 项目卡片 === */
+.project-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: all 0.15s;
+  border-left: 4px solid var(--primary);
+}
+.project-card:hover { box-shadow: 0 4px 16px rgba(26,42,58,0.12); transform: translateY(-1px); }
+.project-card.warning { border-left-color: var(--warning); }
+.project-card.danger { border-left-color: var(--danger); }
+.project-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.project-card-title { font-size: 15px; font-weight: 600; }
+.project-card-meta { font-size: 12px; color: var(--text-muted); display: flex; gap: 16px; flex-wrap: wrap; }
+
+/* === 工具栏 === */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.toolbar-right { margin-left: auto; }
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--card-bg);
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 12px;
+}
+.search-box input { border: none; outline: none; font-size: 13px; font-family: inherit; background: transparent; }
+.search-box input::placeholder { color: var(--text-muted); }
+
+/* === 详情侧栏 === */
+.detail-section { margin-bottom: 24px; }
+.detail-title { font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.detail-item { }
+.detail-item .label { font-size: 11px; color: var(--text-muted); margin-bottom: 2px; }
+.detail-item .value { font-size: 14px; font-weight: 500; }
+
+/* === 交叉引用 === */
+.ref-link { color: var(--primary); cursor: pointer; font-size: 12px; }
+.ref-link:hover { text-decoration: underline; }
+
+/* === 人员卡片 === */
+.person-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #f7f9fc;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+.person-avatar {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.person-avatar.female { background: #e76f8a; }
+.person-info { flex: 1; min-width: 0; }
+.person-name { font-size: 14px; font-weight: 600; }
+.person-meta { font-size: 12px; color: var(--text-muted); }
+.person-actions { display: flex; gap: 6px; }
+
+/* === 列表项 === */
+.list-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+}
+.list-item:last-child { border-bottom: none; }
+
+/* === 导出预览 === */
+.export-preview {
+  background: #f7f9fc;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px;
+  font-size: 12px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  overflow-x: auto;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* === 通知条 === */
+.notif-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(42,157,143,0.1);
+  border: 1px solid rgba(42,157,143,0.2);
+  border-radius: 6px;
+  font-size: 13px;
+  color: #1a6b62;
+  margin-bottom: 16px;
+}
+
+/* === 响应式 === */
+@media (max-width: 1024px) {
+  :root { --sidebar-width: 60px; }
+  .sidebar-logo h1, .sidebar-logo span, .nav-section-title, .nav-item span { display: none; }
+  .nav-item { justify-content: center; padding: 10px; }
+  .nav-item .badge { display: none; }
+  .form-row { grid-template-columns: 1fr; }
+  .detail-grid { grid-template-columns: 1fr; }
+}
+
+/* === 辅助类 === */
+.mb-8 { margin-bottom: 8px; }
+.mb-12 { margin-bottom: 12px; }
+.mb-16 { margin-bottom: 16px; }
+.mb-24 { margin-bottom: 24px; }
+.mt-16 { margin-top: 16px; }
+.flex { display: flex; }
+.flex-1 { flex: 1; }
+.items-center { align-items: center; }
+.gap-8 { gap: 8px; }
+.gap-12 { gap: 12px; }
+.text-muted { color: var(--text-muted); }
+.text-danger { color: var(--danger); }
+.text-success { color: var(--primary); }
+.text-warning { color: var(--warning); }
+.font-bold { font-weight: 700; }
+.text-sm { font-size: 12px; }
+.text-xs { font-size: 11px; }
+.text-right { text-align: right; }
+.w-full { width: 100%; }
+.hidden { display: none !important; }
+.overflow-x { overflow-x: auto; }
+</style>
+</head>
+<body>
+
+<div class="app-layout">
+  <!-- 侧边栏 -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <h1>🚌 研学派团工作台</h1>
+      <span>v1.0 Demo · 2026-09-08</span>
+    </div>
+    <div class="sidebar-nav" id="sidebarNav"></div>
+  </nav>
+
+  <!-- 主内容 -->
+  <div class="main">
+    <header class="main-header">
+      <span id="headerTitleIcon">🏠</span>
+      <h2 id="headerTitle">今日工作台</h2>
+      <div class="header-status">
+        <span class="dot"></span>
+        <span>演示数据 · 请勿用于真实业务</span>
+        <span>·</span>
+        <span id="headerDate"></span>
+      </div>
+    </header>
+    <div class="main-content" id="mainContent"></div>
+  </div>
+</div>
+
+<!-- 模态框容器 -->
+<div id="modalRoot"></div>
+
+<script>
+/* =============================================
+   数据层 - 模拟数据
+   ============================================= */
+
+// 项目状态
+const PROJECT_STATUS = {
+  'pending': { label: '资料待补充', color: 'warning', icon: '📋' },
+  'guides': { label: '人员安排中', color: 'warning', icon: '👥' },
+  'transport': { label: '车辆安排中', color: 'info', icon: '🚌' },
+  'lodging': { label: '住宿安排中', color: 'info', icon: '🏨' },
+  'meal': { label: '用餐安排中', color: 'info', icon: '🍽️' },
+  'check': { label: '待检查', color: 'warning', icon: '🔍' },
+  'ready': { label: '已完成安排', color: 'primary', icon: '✅' },
+  'departed': { label: '已出团', color: 'info', icon: '🚩' },
+  'ended': { label: '已结束', color: 'gray', icon: '🏁' },
+};
+
+// 模拟数据
+const mockData = {
+  schools: [
+    { id: 'S001', name: '青禾实验学校', contact: '张主任', phone: '0731-8876****', note: '长期合作，春秋游首选基地', status: 'active' },
+    { id: 'S002', name: '星海外国语学校', contact: '李老师', phone: '020-6281****', note: '国际部研学项目为主', status: 'active' },
+    { id: 'S003', name: '青云中学', contact: '王校长', phone: '021-4409****', note: '', status: 'inactive' },
+  ],
+  guides: [
+    { id: 'G001', name: '王晨', phone: '138****0001', gender: '男', certNo: '430****0011', certExpiry: '2027-03-15', status: 'active', certStatus: 'valid', tours: 12, rating: 4.8 },
+    { id: 'G002', name: '李敏', phone: '139****0002', gender: '女', certNo: '430****0012', certExpiry: '2027-01-20', status: 'active', certStatus: 'valid', tours: 8, rating: 4.6 },
+    { id: 'G003', name: '周妍', phone: '137****0003', gender: '女', certNo: '430****0013', certExpiry: '2026-11-30', status: 'active', certStatus: 'valid', tours: 15, rating: 4.9 },
+    { id: 'G004', name: '陈浩', phone: '136****0004', gender: '男', certNo: '430****0014', certExpiry: '2026-01-10', status: 'active', certStatus: 'expired', tours: 6, rating: 4.3 },
+    { id: 'G005', name: '刘芳', phone: '135****0005', gender: '女', certNo: '430****0015', certExpiry: '2027-06-01', status: 'active', certStatus: 'valid', tours: 20, rating: 4.7 },
+    { id: 'G006', name: '赵琳', phone: '****', gender: '女', certNo: '430****0016', certExpiry: '2027-02-14', status: 'active', certStatus: 'valid', tours: 3, rating: 4.5 },
+  ],
+  projects: [
+    {
+      id: 'E2E-001',
+      school: '青禾实验学校',
+      grade: '初二',
+      dest: '湖南省内研学基地',
+      startDate: '2026-10-15',
+      endDate: '2026-10-17',
+      status: 'check',
+      gather: '学校东门',
+      gatherTime: '07:00',
+      needLodging: true,
+      needMeal: true,
+      mealCount: 2,
+      needGuides: 3,
+      classes: [
+        { id: 'C1', name: '初二 801 班', students: 42, male: 22, female: 20, teachers: [{ name: '陈建国', phone: '139****1001', gender: '男', ride: true, lodging: true, meal: true }, { name: '林晓华', phone: '139****1002', gender: '女', ride: true, lodging: true, meal: true }], needGuide: 1 },
+        { id: 'C2', name: '初二 802 班', students: 38, male: 18, female: 20, teachers: [{ name: '周海燕', phone: '139****1003', gender: '女', ride: true, lodging: true, meal: true }], needGuide: 1 },
+        { id: 'C3', name: '初二 803 班', students: 45, male: 23, female: 22, teachers: [{ name: '吴志强', phone: '139****1004', gender: '男', ride: true, lodging: true, meal: true }, { name: '孙丽萍', phone: '139****1005', gender: '女', ride: true, lodging: true, meal: true }], needGuide: 1 },
+      ],
+      assignedGuides: [
+        { guideId: 'G001', name: '王晨', classId: 'C1', status: 'assigned' },
+        { guideId: 'G003', name: '周妍', classId: 'C2', status: 'assigned' },
+        { guideId: 'G005', name: '刘芳', classId: 'C3', status: 'assigned' },
+      ],
+      drivers: [
+        { id: 'D1', name: '张伟', phone: '139****2001', gender: '男', carNo: '湘A12345', carModel: '49座大巴', seats: 49, classId: 'C1', ride: true, lodging: true, meal: true },
+        { id: 'D2', name: '李强', phone: '139****2002', gender: '男', carNo: '湘A12346', carModel: '49座大巴', seats: 49, classId: 'C2', ride: true, lodging: true, meal: true },
+        { id: 'D3', name: '王勇', phone: '139****2003', gender: '男', carNo: '湘A12347', carModel: '49座大巴', seats: 49, classId: 'C3', ride: true, lodging: true, meal: true },
+      ],
+      rooms: [
+        { hotel: '研学基地招待所', building: 'A栋', floor: 1, roomNo: '101', type: '4人间', capacity: 4, classId: 'C1', gender: '男', count: 6, role: '学生' },
+        { { hotel: '研学基地招待所', building: 'A栋', floor: 1, roomNo: '102', type: '4人间', capacity: 4, classId: 'C1', gender: '男', count: 4, role: '学生' },
+        { { hotel: '研学基地招待所', building: 'A栋', floor: 1, roomNo: '103', type: '4人间', capacity: 4, classId: 'C1', gender: '男', count: 4, role: '学生' },
+        { { hotel: '研学基地招待所', building: 'A栋', floor: 1, roomNo: '104', type: '4人间', capacity: 4, classId: 'C1', gender: '男', count: 4, role: '学生' },
+        { { hotel: '研学基地招待所', building: 'A栋', floor: 2, roomNo: '201', type: '4人间', capacity: 4, classId: 'C1', gender: '女', count: 5, role: '学生' },
+        { { hotel: '研学基地招待所', building: 'A栋', floor: 2, roomNo: '202', type: '4人间', capacity: 4, classId: 'C1', gender: '女', count: 5, role: '学生' },
+        { { hotel: '研学基地招待所', building: 'A栋', floor: 2, roomNo: '203', type: '4人间', capacity: 4, classId: 'C1', gender: '女', count: 5, role: '学生' },
+        { { hotel: '研学基地招待所', building: 'A栋', floor: 2, roomNo: '204', type: '4人间', capacity: 4, classId: 'C1', gender: '女', count: 5, role: '学生' },
+        { { hotel: '研学基地招待所', building: 'B栋', floor: 1, roomNo: '301', type: '4人间', capacity: 4, classId: 'C2', gender: '男', count: 5, role: '学生' },
+        { { hotel: '研学基地招待所', building: 'B栋', floor: 1, roomNo: '302', type: '4人间', capacity: 4, classId: 'C2', gender: '男', count: 5, role: '学生' },
+        { { hotel: '研学基地招待所', building: 'B栋', floor: 1, roomNo: '303', type: '4人间', capacity: 4, classId: 'C2', gender: '男', count: 5, role: '学生' },
+        { { hotel: '研学基地招待所', building: 'B栋', floor: 1, roomNo: '304', type: '4人间', capacity: 4, classId: 'C2', gender: '女', count: 5, role: '学生' },
+        { { hotel: '研学基地招待所', building: 'B栋', floor: 1, roomNo: '305', type: '4人间', capacity: 4, classId: 'C2', gender: '女', count: 5, role: '学生' },
+        { { hotel: '研学基地招待所', building: 'B栋', floor: 2, roomNo: '401', type: '4人间', capacity: 4, classId: 'C3', gender: '男', count: 6, role: '学生' },
+        { { hotel: '研学基地招待所', building: 'B栋', floor: 2, roomNo: '402', type: '4人间', capacity: 4, classId: 'C3', gender: '男', count: 6, role: '学生' },
+        { { hotel: '研学基地招待所', building: 'B栋', floor: 2, roomNo: '403', type: '4人间', capacity: 4, classId: 'C3', gender: '男', count: 6, role: '学生' },
+        { { hotel: '研学基地招待所', building: 'B栋', floor: 2, roomNo: '404', type: '4人间', capacity: 4, classId: 'C3', gender: '男', count: 5, role: '学生' },
+        { { hotel: '研学基地招待所', building: 'B栋', floor: 2, roomNo: '405', type: '4人间', capacity: 4, classId: 'C3', gender: '女', count: 6, role: '学生' },
+        { { hotel: '研学基地招待所', building: 'C栋', floor: 1, roomNo: '501', type: '4人间', capacity: 4, classId: 'C3', gender: '女', count: 6, role: '学生' },
+        { { hotel: '研学基地招待所', building: 'C栋', floor: 1, roomNo: '502', type: '4人间', capacity: 4, classId: 'C3', gender: '女', count: 5, role: '学生' },
+        { { hotel: '研学基地招待所', building: 'C栋', floor: 1, roomNo: '503', type: '4人间', capacity: 4, classId: 'C3', gender: '女', count: 5, role: '学生' },
+        { { hotel: '研学基地招待所', building: 'C栋', floor: 2, roomNo: '601', type: '4人间', capacity: 4, classId: 'staff-m', gender: '男', count: 3, role: '工作人员' },
+        { { hotel: '研学基地招待所', building: 'C栋', floor: 2, roomNo: '602', type: '4人间', capacity: 4, classId: 'staff-f', gender: '女', count: 3, role: '工作人员' },
+      ],
+      meals: [
+        { date: '2026-10-15', meal: '晚餐', restaurant: '研学基地餐厅A', time: '18:00', standard: 10, booked: 14, tables: ['A01','A02','A03','A04','A05','A06','A07','A08','A09','A10','A11','A12','A13','A14'] },
+        { date: '2026-10-16', meal: '早餐', restaurant: '研学基地餐厅A', time: '07:30', standard: 10, booked: 14, tables: ['A01','A02','A03','A04','A05','A06','A07','A08','A09','A10','A11','A12','A13','A14'] },
+      ],
+      exceptions: [
+        { id: 'EX01', type: 'warning', module: 'lodging', title: '跨班拼房', desc: '801班男生2人与802班男生2人拼房（主班801班）', projectId: 'E2E-001', status: 'pending' },
+      ],
+    },
+    {
+      id: 'E2E-002',
+      school: '星海外国语学校',
+      grade: '初一',
+      dest: '深圳海洋世界一日游',
+      startDate: '2026-10-20',
+      endDate: '2026-10-20',
+      status: 'guides',
+      gather: '学校南门',
+      gatherTime: '08:00',
+      needLodging: false,
+      needMeal: false,
+      mealCount: 0,
+      needGuides: 2,
+      classes: [
+        { id: 'C4', name: '初一 101 班', students: 40, male: 21, female: 19, teachers: [{ name: '刘老师', phone: '139****3001', gender: '女', ride: true, lodging: false, meal: false }], needGuide: 1 },
+        { id: 'C5', name: '初一 102 班', students: 38, male: 20, female: 18, teachers: [{ name: '张老师', phone: '139****3002', gender: '男', ride: true, lodging: false, meal: false }], needGuide: 1 },
+      ],
+      assignedGuides: [],
+      drivers: [],
+      rooms: [],
+      meals: [],
+      exceptions: [],
+    },
+  ],
+  logs: [
+    { id: 'L001', time: '2026-09-08 10:23', type: 'import', user: '负责人', desc: '导入班级Excel，3条成功，0条失败', projectId: 'E2E-001' },
+    { id: 'L002', time: '2026-09-08 10:31', type: 'guide_assign', user: '负责人', desc: '安排王晨负责初二801班', projectId: 'E2E-001' },
+    { id: 'L003', time: '2026-09-08 10:33', type: 'guide_assign', user: '负责人', desc: '安排周妍负责初二802班', projectId: 'E2E-001' },
+    { id: 'L004', time: '2026-09-08 10:35', type: 'guide_assign', user: '负责人', desc: '安排刘芳负责初二803班', projectId: 'E2E-001' },
+    { id: 'L005', time: '2026-09-08 11:02', type: 'transport', user: '负责人', desc: '导入3辆乘车安排，座位分配正常', projectId: 'E2E-001' },
+    { id: 'L006', time: '2026-09-08 11:15', type: 'export', user: '负责人', desc: '导出乘车安排表（预览），字段合计正常', projectId: 'E2E-001' },
+    { id: 'L007', time: '2026-09-08 14:05', type: 'sensitive', user: '负责人', desc: '查看导游王晨完整证件信息', projectId: 'E2E-001' },
+  ],
+  backups: [
+    { id: 'B001', time: '2026-09-08 09:00', size: '24.3 MB', type: 'daily', status: 'verified' },
+    { id: 'B002', time: '2026-09-07 17:30', size: '24.1 MB', type: 'daily', status: 'verified' },
+    { id: 'B003', time: '2026-09-06 17:25', size: '23.8 MB', type: 'daily', status: 'verified' },
+    { id: 'B004', time: '2026-09-01 17:20', size: '22.5 MB', type: 'monthly', status: 'verified' },
+  ],
+};
+
+// 计算属性
+function calcProjectStats(project) {
+  const totalStudents = project.classes.reduce((s, c) => s + c.students, 0);
+  const totalMale = project.classes.reduce((s, c) => s + c.male, 0);
+  const totalFemale = project.classes.reduce((s, c) => s + c.female, 0);
+  const totalTeachers = project.classes.reduce((s, c) => s + c.teachers.length, 0);
+  const rideTeachers = project.classes.reduce((s, c) => s + c.teachers.filter(t => t.ride).length, 0);
+  const totalGuides = project.assignedGuides.length;
+  const totalDrivers = project.drivers.length;
+  const tripDays = (new Date(project.endDate) - new Date(project.startDate)) / 86400000 + 1;
+  const isMultiDay = tripDays > 1;
+
+  let rideCount = 0, capacity = 0;
+  if (project.drivers.length > 0) {
+    project.drivers.forEach(d => {
+      const cls = project.classes.find(c => c.id === d.classId);
+      const rideStudents = cls ? cls.students : 0;
+      const rideTea = cls ? cls.teachers.filter(t => t.ride).length : 0;
+      const rideGuide = project.assignedGuides.filter(g => g.classId === d.classId).length;
+      rideCount += rideStudents + rideTea + rideGuide;
+      capacity += d.seats;
+    });
+  }
+
+  return {
+    totalStudents, totalMale, totalFemale, totalTeachers, rideTeachers,
+    totalGuides, totalDrivers, tripDays, isMultiDay, rideCount, capacity
+  };
+}
+
+/* =============================================
+   路由 & 页面注册
+   ============================================= */
+
+const PAGES = [
+  { id: 'P01', label: '今日工作台', icon: '🏠', section: '工作台', badge: () => getExceptionCount() },
+  { id: 'P02', label: '项目列表', icon: '📋', section: '研学项目' },
+  { id: 'P03', label: '新建/编辑项目', icon: '➕', section: '研学项目' },
+  { id: 'P04', label: '项目执行总览', icon: '📊', section: '研学项目' },
+  { id: 'P05', label: '班级与随团汇总', icon: '👥', section: '研学项目' },
+  { id: 'P06', label: '招募与接龙', icon: '📢', section: '研学项目' },
+  { id: 'P07', label: '导游安排', icon: '🎫', section: '研学项目' },
+  { id: 'P08', label: '乘车安排', icon: '🚌', section: '研学项目' },
+  { id: 'P09', label: '住宿安排', icon: '🏨', section: '研学项目' },
+  { id: 'P10', label: '用餐安排', icon: '🍽️', section: '研学项目' },
+  { id: 'P11', label: '资料导入', icon: '📥', section: '资料' },
+  { id: 'P12', label: '映射预览', icon: '🔍', section: '资料' },
+  { id: 'P13', label: '学校库', icon: '🏫', section: '资源库' },
+  { id: 'P14', label: '导游列表', icon: '🎫', section: '资源库' },
+  { id: 'P15', label: '导游档案', icon: '📁', section: '资源库' },
+  { id: 'P16', label: '表格中心', icon: '📑', section: '输出' },
+  { id: 'P17', label: '预览与导出', icon: '⬇️', section: '输出' },
+  { id: 'P18', label: '异常中心', icon: '⚠️', section: '监控', badge: () => getExceptionCount() },
+  { id: 'P19', label: '操作记录', icon: '📝', section: '监控' },
+  { id: 'P20', label: '数据备份', icon: '💾', section: '系统' },
+];
+
+const sections = ['工作台', '研学项目', '资料', '资源库', '输出', '监控', '系统'];
+
+function getExceptionCount() {
+  return mockData.projects.reduce((n, p) => n + p.exceptions.filter(e => e.status === 'pending').length, 0);
+}
+
+let currentPage = 'P01';
+let currentProject = mockData.projects[0]; // 默认选中主项目
+
+function navigate(pageId) {
+  currentPage = pageId;
+  renderSidebar();
+  renderHeader();
+  renderPage();
+}
+
+function renderSidebar() {
+  const nav = document.getElementById('sidebarNav');
+  let html = '';
+  let currentSection = '';
+  PAGES.forEach(p => {
+    if (p.section !== currentSection) {
+      currentSection = p.section;
+      html += `<div class="nav-section-title">${currentSection}</div>`;
+    }
+    const badge = p.badge ? p.badge() : 0;
+    const active = p.id === currentPage ? 'active' : '';
+    const badgeHtml = badge > 0 ? `<span class="badge${badge > 0 ? '' : ''}">${badge}</span>` : '';
+    html += `<div class="nav-item ${active}" onclick="navigate('${p.id}')">${p.icon}<span>${p.label}</span>${badgeHtml}</div>`;
+  });
+  nav.innerHTML = html;
+}
+
+function renderHeader() {
+  const p = PAGES.find(p => p.id === currentPage);
+  document.getElementById('headerTitleIcon').textContent = p ? p.icon : '🏠';
+  document.getElementById('headerTitle').textContent = p ? p.label : '';
+}
+
+function renderPage() {
+  const content = document.getElementById('mainContent');
+  const fn = PAGE_RENDERERS[currentPage];
+  content.innerHTML = fn ? fn() : '<div class="empty-state"><div class="icon">🚧</div><p>页面开发中...</p></div>';
+  content.scrollTop = 0;
+  document.getElementById('headerDate').textContent = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short' });
+}
+
+/* =============================================
+   页面渲染器
+   ============================================= */
+
+const PAGE_RENDERERS = {
+
+  /* ---------- P01 今日工作台 ---------- */
+  P01() {
+    const stats = calcProjectStats(currentProject);
+    const today = new Date().totoLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' });
+    const upcomingProjects = mockData.projects.filter(p => new Date(p.startDate) >= new Date());
+    const excCount = getExceptionCount();
+    const expiringGuides = mockData.guides.filter(g => {
+      if (!g.certExpiry) return false;
+      const d = new Date(g.certExpiry);
+      const diff = (d - new Date()) / 86400000;
+      return diff > 0 && diff <= 30;
+    });
+
+    return `
+      <h1 class="page-title">🏠 今日工作台</h1>
+      <div class="notif-bar">
+        📅 ${today} &nbsp;|&nbsp; 共 ${upcomingProjects.length} 个研学项目待执行
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">近期出团</div>
+          <div class="stat-value">${upcomingProjects.length}</div>
+          <div class="stat-sub">含 ${mockData.projects.filter(p => p.status === 'ready').length} 个已完成安排</div>
+        </div>
+        <div class="stat-card warning">
+          <div class="stat-label">待确认导游</div>
+          <div class="stat-value">${mockData.projects.filter(p => p.status === 'guides').reduce((s, p) => s + (p.needGuides - p.assignedGuides.length), 0)}</div>
+          <div class="stat-sub">${mockData.projects.filter(p => p.status === 'guides').length} 个项目</div>
+        </div>
+        <div class="stat-card danger">
+          <div class="stat-label">阻断异常</div>
+          <div class="stat-value">${excCount}</div>
+          <div class="stat-sub">需处理后导出</div>
+        </div>
+        <div class="stat-card info">
+          <div class="stat-label">证件临期（30天内）</div>
+          <div class="stat-value">${expiringGuides.length}</div>
+          <div class="stat-sub">${expiringGuides.map(g => g.name).join('、') || '无'}</div>
+        </div>
+      </div>
+
+      <div class="card mb-24">
+        <div class="card-header"><h3>📅 未来七天研学项目</h3></div>
+        <div class="card-body">
+          ${upcomingProjects.length === 0 ? '<div class="empty-state"><div class="icon">📭</div><p>暂无近期项目</p></div>' : ''}
+          ${upcomingProjects.map(p => {
+            const s = calcProjectStats(p);
+            const st = PROJECT_STATUS[p.status];
+            return `
+            <div class="project-card ${p.status === 'check' || excCount > 0 ? 'warning' : ''}" onclick="selectProject('${p.id}')">
+              <div class="project-card-header">
+                <span class="project-card-title">${p.school} · ${p.grade}</span>
+                <span class="tag tag-${st.color}">${st.icon} ${st.label}</span>
+              </div>
+              <div class="project-card-meta">
+                <span>📍 ${p.dest}</span>
+                <span>📅 ${p.startDate} ~ ${p.endDate}</span>
+                <span>👥 ${s.totalStudents}名学生 · ${s.tripDays === 1 ? '一日游' : `多日游(${s.tripDays}天)`}</span>
+                <span>🚌 ${p.drivers.length}车 · 导游 ${p.assignedGuides.length}/${p.needGuides}</span>
+              </div>
+            </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+
+      ${excCount > 0 ? `
+      <div class="card mb-24">
+        <div class="card-header"><h3>⚠️ 资源异常与待办提醒</h3></div>
+        <div class="card-body">
+          ${currentProject.exceptions.filter(e => e.status === 'pending').map(e => `
+            <div class="alert alert-warning">
+              <span>${e.type === 'warning' ? '⚠️' : '🔴'}</span>
+              <div>
+                <strong>${e.title}</strong> — ${e.desc}
+                <div class="text-xs text-muted mt-16">所属项目：${e.projectId} · 模块：${e.module}</div>
+              </div>
+            </div>
+          `).join('')}
+          <div class="flex gap-8 mt-16">
+            <button class="btn btn-outline btn-sm" onclick="navigate('P18')">查看异常中心 →</button>
+            <button class="btn btn-outline btn-sm" onclick="navigate('P04')">查看项目总览 →</button>
+          </div>
+        </div>
+      </div>
+      ` : ''}
+
+      <div class="card">
+        <div class="card-header"><h3>⚡ 快捷操作</h3></div>
+        <div class="card-body">
+          <div class="flex gap-8 flex-wrap">
+            <button class="btn btn-primary" onclick="navigate('P03')">➕ 新建项目</button>
+            <button class="btn btn-outline" onclick="navigate('P06')">📢 生成招募通知</button>
+            <button class="btn btn-outline" onclick="navigate('P11')">📥 导入资料</button>
+            <button class="btn btn-outline" onclick="navigate('P17')">⬇️ 导出表格</button>
+            <button class="btn btn-outline" onclick="navigate('P13')">🏫 学校库</button>
+            <button class="btn btn-outline" onclick="navigate('P14')">🎫 导游库</button>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  /* ---------- P02 项目列表 ---------- */
+  P02() {
+    return `
+      <div class="flex items-center mb-24">
+        <h1 class="page-title" style="margin-bottom:0">📋 研学项目列表</h1>
+        <div style="margin-left:auto">
+          <button class="btn btn-primary" onclick="navigate('P03')">➕ 新建项目</button>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="search-box">
+          <span>🔍</span>
+          <input placeholder="搜索学校、目的地、年级..." oninput="filterProjects(this.value)">
+        </div>
+        <div class="toolbar-right">
+          <select class="form-control" style="width:auto" onchange="filterByStatus(this.value)">
+            <option value="">全部状态</option>
+            ${Object.entries(PROJECT_STATUS).map(([k, v]) => `<option value="${k}">${v.icon} ${v.label}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div id="projectList">
+        ${mockData.projects.map(p => {
+          const s = calcProjectStats(p);
+          const st = PROJECT_STATUS[p.status];
+          const exc = p.exceptions.filter(e => e.status === 'pending').length;
+          return `
+          <div class="project-card ${exc > 0 ? 'warning' : ''}" onclick="selectProject('${p.id}')" style="margin-bottom:12px">
+            <div class="project-card-header">
+              <span class="project-card-title">${p.school} · ${p.grade}</span>
+              <span class="tag tag-${st.color}">${st.icon} ${st.label}</span>
+              ${exc > 0 ? `<span class="tag tag-warning">⚠️ ${exc}个异常</span>` : ''}
+            </div>
+            <div class="project-card-meta">
+              <span>🎯 ${p.dest}</span>
+              <span>📅 ${p.startDate} ~ ${p.endDate}</span>
+              <span>👥 ${s.totalStudents}名学生 · ${p.classes.length}个班</span>
+              <span>🚌 ${p.drivers.length}车</span>
+              <span>🎫 导游 ${p.assignedGuides.length}/${p.needGuides}</span>
+              ${p.needLodging ? `<span>🏨 住宿</span>` : ''}
+              ${p.needMeal ? `<span>🍽️ 含餐${p.mealCount}次</span>` : ''}
+            </div>
+          </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  },
+
+  /* ---------- P03 新建/编辑项目 ---------- */
+  P03() {
+    return `
+      <h1 class="page-title">➕ 新建研学项目</h1>
+      <div class="alert alert-info mb-16">
+        💡 使用最少字段即可创建草稿项目，后续逐步补充完整资料。
+      </div>
+      <div class="card mb-24">
+        <div class="card-header"><h3>项目基本信息</h3><span class="tag tag-danger">* 必填</span></div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">学校名称 <span class="req">*</span></label>
+              <input class="form-control" id="f-school" placeholder="如：青禾实验学校">
+            </div>
+            <div class="form-group">
+              <label class="form-label">年级 <span class="req">*</span></label>
+              <input class="form-control" id="f-grade" placeholder="如：初二">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">研学目的地 <span class="req">*</span></label>
+            <input class="form-control" id="f-dest" placeholder="如：湖南省内研学基地">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">出团日期 <span class="req">*</span></label>
+              <input type="date" class="form-control" id="f-start" value="2026-10-25">
+            </div>
+            <div class="form-group">
+              <label class="form-label">结束日期 <span class="req">*</span></label>
+              <input type="date" class="form-control" id="f-end" value="2026-10-27">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">集合地点</label>
+              <input class="form-control" id="f-gather" placeholder="如：学校东门">
+            </div>
+            <div class="form-group">
+              <label class="form-label">集合时间</label>
+              <input type="time" class="form-control" id="f-gatherTime" value="07:00">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">需要住宿</label>
+              <select class="form-control" id="f-lodging">
+                <option value="true">是</option>
+                <option value="false">否</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">是否含餐</label>
+              <select class="form-control" id="f-meal">
+                <option value="true">是</option>
+                <option value="false">否</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">所需导游人数</label>
+            <input type="number" class="form-control" id="f-guides" value="3" min="1">
+          </div>
+          <div class="form-group">
+            <label class="form-label">行程说明</label>
+            <textarea class="form-control" id="f-desc" placeholder="补充行程安排、注意事项等..."></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="flex gap-8">
+        <button class="btn btn-primary" onclick="saveProject()">💾 保存草稿</button>
+        <button class="btn btn-outline" onclick="navigate('P02')">取消</button>
+      </div>
+      <div id="saveMsg" class="mt-16"></div>
+    `;
+  },
+
+  /* ---------- P04 项目执行总览 ---------- */
+  P04() {
+    const p = currentProject;
+    const s = calcProjectStats(p);
+    const tripType = s.tripDays === 1 ? '一日游' : `多日游（${s.tripDays}天）`;
+    const lodgingOk = !p.needLodging || p.rooms.length > 0;
+    const mealOk = !p.needMeal || p.meals.length > 0;
+    const guideOk = p.assignedGuides.length >= p.needGuides;
+    const transportOk = p.drivers.length > 0;
+
+    const steps = [
+      { label: '基本信息', done: true, icon: '📋' },
+      { label: '班级与老师', done: p.classes.length > 0, icon: '👥' },
+      { label: '导游招募', done: guideOk, icon: '📢' },
+      { label: '导游分配', done: guideOk, icon: '🎫' },
+      { label: '乘车安排', done: transportOk, icon: '🚌', warn: !transportOk },
+      { label: '住宿安排', done: lodgingOk, icon: '🏨', na: !p.needLodging, warn: p.needLodging && !lodgingOk },
+      { label: '用餐安排', done: mealOk, icon: '🍽️', na: !p.needMeal, warn: p.needMeal && !mealOk },
+      { label: '异常检查', done: getExceptionCount() === 0, icon: '🔍', warn: getExceptionCount() > 0 },
+    ];
+
+    return `
+      <div class="flex items-center mb-24">
+        <h1 class="page-title" style="margin-bottom:0">📊 项目执行总览</h1>
+        <div style="margin-left:auto" class="flex gap-8">
+          <span class="tag tag-${PROJECT_STATUS[p.status].color}">${PROJECT_STATUS[p.status].icon} ${PROJECT_STATUS[p.status].label}</span>
+          <button class="btn btn-outline btn-sm" onclick="navigate('P03')">✏️ 编辑项目</button>
+        </div>
+      </div>
+
+      <div class="card mb-24">
+        <div class="card-body">
+          <div class="detail-grid">
+            <div class="detail-item"><div class="label">学校</div><div class="value font-bold">${p.school}</div></div>
+            <div class="detail-item"><div class="label">年级</div><div class="value">${p.grade}</div></div>
+            <div class="detail-item"><div class="label">目的地</div><div class="value">${p.dest}</div></div>
+            <div class="detail-item"><div class="label">行程类型</div><div class="value">${tripType}</div></div>
+            <div class="detail-item"><div class="label">出团日期</div><div class="value">${p.startDate}</div></div>
+            <div class="detail-item"><div class="label">结束日期</div><div class="value">${p.endDate}</div></div>
+            <div class="detail-item"><div class="label">集合地点</div><div class="value">${p.gather || '未设置'}</div></div>
+            <div class="detail-item"><div class="label">集合时间</div><div class="value">${p.gatherTime || '未设置'}</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-24">
+        <div class="card-header"><h3>📋 执行阶段进度</h3></div>
+        <div class="card-body">
+          <div class="step-bar">
+            ${steps.map((st, i) => `
+              <div class="step-item ${st.na ? '' : (st.done ? 'done' : (st.warn ? 'warning' : ''))}"
+                   onclick="${st.na ? '' : `navigate('${['P03','P05','P06','P07','P08','P09','P10','P18'][i]}')`}"
+                   title="${st.na ? '不适用' : st.label}">
+                <div style="font-size:16px">${st.icon}</div>
+                <div style="margin-top:2px">${st.na ? `<span class="text-muted">${st.label}</span>` : st.label}</div>
+                ${st.na ? '<div class="text-xs text-muted">不适用</div>' : (st.done ? '✓' : '')}
+              </div>
+            `).join('')}
+          </div>
+
+          <div class="stat-grid" style="margin-top:16px">
+            <div class="stat-card">
+              <div class="stat-label">学生总人数</div>
+              <div class="stat-value">${s.totalStudents}</div>
+              <div class="stat-sub">男 ${s.totalMale} / 女 ${s.totalFemale}</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">班级数量</div>
+              <div class="stat-value">${p.classes.length}</div>
+              <div class="stat-sub">随车老师 ${s.rideTeachers} 人</div>
+            </div>
+            <div class="stat-card ${guideOk ? '' : 'warning'}">
+              <div class="stat-label">已安排导游</div>
+              <div class="stat-value">${p.assignedGuides.length}/${p.needGuides}</div>
+              <div class="stat-sub">${guideOk ? '✅ 已齐备' : '⚠️ 缺' + (p.needGuides - p.assignedGuides.length) + '人'}</div>
+            </div>
+            <div class="stat-card ${transportOk ? '' : 'warning'}">
+              <div class="stat-label">车辆安排</div>
+              <div class="stat-value">${p.drivers.length}车</div>
+              <div class="stat-sub">${transportOk ? `乘车${s.rideCount}人 / ${s.capacity}座` : '未安排'}</div>
+            </div>
+            ${p.needLodging ? `
+            <div class="stat-card ${lodgingOk ? '' : 'warning'}">
+              <div class="stat-label">住宿安排</div>
+              <div class="stat-value">${p.rooms.length}间</div>
+              <div class="stat-sub">${lodgingOk ? '✅ 已安排' : '未安排'}</div>
+            </div>` : ''}
+            ${p.needMeal ? `
+            <div class="stat-card ${mealOk ? '' : 'warning'}">
+              <div class="stat-label">用餐安排</div>
+              <div class="stat-value">${p.meals.length}餐次</div>
+              <div class="stat-sub">${mealOk ? '✅ 已安排' : '未安排'}</div>
+            </div>` : ''}
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>➡️ 下一步操作</h3></div>
+        <div class="card-body">
+          ${!guideOk ? `
+            <div class="notif-bar">👥 导游尚未安排齐备 — <span class="ref-link" onclick="navigate('P07')">去安排导游 →</span></div>
+          ` : !transportOk ? `
+            <div class="notif-bar">🚌 乘车安排未完成 — <span class="ref-link" onclick="navigate('P08')">去安排车辆 →</span></div>
+          ` : p.needLodging && !lodgingOk ? `
+            <div class="notif-bar">🏨 住宿安排未完成 — <span class="ref-link" onclick="navigate('P09')">去安排住宿 →</span></div>
+          ` : p.needMeal && !mealOk ? `
+            <div class="notif-bar">🍽️ 用餐安排未完成 — <span class="ref-link" onclick="navigate('P10')">去安排用餐 →</span></div>
+          ` : getExceptionCount() > 0 ? `
+            <div class="notif-bar">⚠️ 存在 ${getExceptionCount()} 个异常 — <span class="ref-link" onclick="navigate('P18')">去处理异常 →</span></div>
+          ` : `
+            <div class="notif-bar" style="background:rgba(42,157,143,0.1);color:#1a6b62;border-color:rgba(42,157,143,0.2)">
+              ✅ 所有模块已完成安排，可以进入最终检查并导出表格
+              <button class="btn btn-primary btn-sm" onclick="navigate('P16')" style="margin-left:12px">📑 进入表格中心 →</button>
+            </div>
+          `}
+          <div class="flex gap-8 mt-16">
+            <button class="btn btn-outline btn-sm" onclick="navigate('P05')">👥 班级与随团汇总</button>
+            <button class="btn btn-outline btn-sm" onclick="navigate('P07')">🎫 导游安排</button>
+            <button class="btn btn-outline btn-sm" onclick="navigate('P08')">🚌 乘车安排</button>
+            ${p.needLodging ? `<button class="btn btn-outline btn-sm" onclick="navigate('P09')">🏨 住宿安排</button>` : ''}
+            ${p.needMeal ? `<button class="btn btn-outline btn-sm" onclick="navigate('P10')">🍽️ 用餐安排</button>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  /* ---------- P05 班级、老师与随团汇总 ---------- */
+  P05() {
+    const p = currentProject;
+    const s = calcProjectStats(p);
+    const teachers = p.classes.flatMap(c => c.teachers);
+    const mTeachers = teachers.filter(t => t.gender === '男').length;
+    const fTeachers = teachers.filter(t => t.gender === '女').length;
+    const mLodgeTeachers = teachers.filter(t => t.lodging).length;
+    const mMealTeachers = teachers.filter(t => t.meal).length;
+    const mGuides = p.assignedGuides.filter(g => {
+      const gg = mockData.guides.find(x => x.id === g.guideId);
+      return gg && gg.gender === '男';
+    }).length;
+    const fGuides = p.assignedGuides.filter(g => {
+      const gg = mockData.guides.find(x => x.id === g.guideId);
+      return gg && gg.gender === '女';
+    }).length;
+    const mDrivers = p.drivers.filter(d => d.gender === '男').length;
+    const mLodgeDrivers = p.drivers.filter(d => d.lodging).length;
+    const mMealDrivers = p.drivers.filter(d => d.meal).length;
+
+    return `
+      <div class="flex items-center mb-24">
+        <h1 class="page-title" style="margin-bottom:0">👥 班级与项目随团人员汇总</h1>
+        <div style="margin-left:auto">
+          <button class="btn btn-primary btn-sm" onclick="openModal('addClass')">➕ 添加班级</button>
+          <button class="btn btn-outline btn-sm" onclick="navigate('P11')">📥 导入班级Excel</button>
+        </div>
+      </div>
+
+      <div class="alert alert-info mb-16">
+        💡 班级人数是车辆、住宿和用餐的共同数据源。修改人数后，下游统计自动失效并重新计算。
+      </div>
+
+      <!-- 班级列表 -->
+      <div class="card mb-24">
+        <div class="card-header">
+          <h3>📚 班级信息（${p.classes.length}个班）</h3>
+          <div style="margin-left:auto;font-size:12px;color:var(--text-muted)">
+            学生合计：<strong>${s.totalStudents}</strong>（男 ${s.totalMale} / 女 ${s.totalFemale}）
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>班级名称</th>
+                  <th>学生总数</th>
+                  <th>男生</th>
+                  <th>女生</th>
+                  <th>班主任</th>
+                  <th>配班老师</th>
+                  <th>随车老师</th>
+                  <th>需导游</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${p.classes.map(c => `
+                  <tr>
+                    <td><strong>${c.name}</strong></td>
+                    <td><strong>${c.students}</strong></td>
+                    <td>${c.male}</td>
+                    <td>${c.female}</td>
+                    <td>${c.teachers[0] ? c.teachers[0].name : '<span class="text-muted">—</span>'}</td>
+                    <td>${c.teachers.slice(1).map(t => t.name).join('、') || '<span class="text-muted">—</span>'}</td>
+                    <td>${c.teachers.filter(t => t.ride).length}</td>
+                    <td>${c.needGuide}</td>
+                    <td>
+                      <button class="btn btn-outline btn-sm" onclick="openModal('editClass','${c.id}')">编辑</button>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+              <tfoot>
+                <tr style="background:#f7f9fc;font-weight:600">
+                  <td>合计</td>
+                  <td>${s.totalStudents}</td>
+                  <td>${s.totalMale}</td>
+                  <td>${s.totalFemale}</td>
+                  <td>—</td>
+                  <td>—</td>
+                  <td>${s.rideTeachers}</td>
+                  <td>${p.needGuides}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <div class="alert ${s.totalMale + s.totalFemale === s.totalStudents ? 'alert-success' : 'alert-danger'}" style="margin-top:12px;margin-bottom:0">
+            ${s.totalMale + s.totalFemale === s.totalStudents ? '✅ 校验通过：男' + s.totalMale + ' + 女' + s.totalFemale + ' = 总数' + s.totalStudents : '❌ 校验失败：男' + s.totalMale + ' + 女' + s.totalFemale + ' ≠ 总数' + s.totalStudents}
+          </div>
+        </div>
+      </div>
+
+      <!-- 老师详情 -->
+      <div class="card mb-24">
+        <div class="card-header"><h3>👨‍🏫 老师明细</h3></div>
+        <div class="card-body">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>姓名</th><th>性别</th><th>联系电话</th><th>随车</th><th>住宿</th><th>就餐</th><th>所属班级</th></tr></thead>
+              <tbody>
+                ${p.classes.flatMap(c => c.teachers.map(t => ({ ...t, className: c.name }))).map(t => `
+                  <tr>
+                    <td><strong>${t.name}</strong></td>
+                    <td>${t.gender}</td>
+                    <td>${t.phone}</td>
+                    <td>${t.ride ? '✅' : '❌'}</td>
+                    <td>${t.lodging ? '✅' : '❌'}</td>
+                    <td>${t.meal ? '✅' : '❌'}</td>
+                    <td>${t.className}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 项目随团人员汇总 -->
+      <div class="card">
+        <div class="card-header"><h3>📊 项目随团人员汇总（统一来源）</h3></div>
+        <div class="card-body">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>角色</th><th>男</th><th>女</th><th>合计</th><th>住宿人数</th><th>每餐就餐人数</th><th>来源</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>学生</td>
+                  <td>${s.totalMale}</td>
+                  <td>${s.totalFemale}</td>
+                  <td><strong>${s.totalStudents}</strong></td>
+                  <td>${s.totalStudents}</td>
+                  <td>${s.totalStudents}</td>
+                  <td><span class="ref-link" onclick="navigate('P05')">← 本页班级</span></td>
+                </tr>
+                <tr>
+                  <td>老师</td>
+                  <td>${mTeachers}</td>
+                  <td>${fTeachers}</td>
+                  <td>${s.totalTeachers}</td>
+                  <td>${mLodgeTeachers}</td>
+                  <td>${mMealTeachers}</td>
+                  <td><span class="ref-link" onclick="navigate('P05')">← 本页老师明细</span></td>
+                </tr>
+                <tr>
+                  <td>导游</td>
+                  <td>${mGuides}</td>
+                  <td>${fGuides}</td>
+                  <td>${s.totalGuides}</td>
+                  <td>${s.totalGuides}</td>
+                  <td>${s.totalGuides}</td>
+                  <td><span class="ref-link" onclick="navigate('P07')">← P07导游分配</span></td>
+                </tr>
+                <tr>
+                  <td>司机</td>
+                  <td>${mDrivers}</td>
+                  <td>0</td>
+                  <td>${s.totalDrivers}</td>
+                  <td>${mLodgeDrivers}</td>
+                  <td>${mMealDrivers}</td>
+                  <td><span class="ref-link" onclick="navigate('P08')">← P08乘车安排</span></td>
+                </tr>
+                <tr style="background:#f7f9fc;font-weight:600">
+                  <td>合计</td>
+                  <td>${s.totalMale + mTeachers + mGuides + mDrivers}</td>
+                  <td>${s.totalFemale + fTeachers + fGuides}</td>
+                  <td><strong>${s.totalStudents + s.totalTeachers + s.totalGuides + s.totalDrivers}</strong></td>
+                  <td><strong>${s.totalStudents + mLodgeTeachers + s.totalGuides + mLodgeDrivers}</strong></td>
+                  <td><strong>${s.totalStudents + mMealTeachers + s.totalGuides + mMealDrivers}</strong></td>
+                  <td></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="notif-bar" style="margin-top:16px">
+            ℹ️ 住宿和用餐人数均来自本汇总，不在 P09/P10 另行维护。修改老师、导游或司机参与标记后，下游自动重算。
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  /* ---------- P06 招募通知与接龙 ---------- */
+  P06() {
+    const p = currentProject;
+    return `
+      <div class="flex items-center mb-24">
+        <h1 class="page-title" style="margin-bottom:0">📢 招募通知与接龙导入</h1>
+        <div style="margin-left:auto">
+          <button class="btn btn-outline btn-sm" onclick="navigate('P11')">📥 导入接龙名单</button>
+        </div>
+      </div>
+
+      <div class="card mb-24">
+        <div class="card-header"><h3>📋 生成招募通知</h3></div>
+        <div class="card-body">
+          <div class="form-row mb-16">
+            <div class="form-group">
+              <label class="form-label">出团日期</label>
+              <input type="date" class="form-control" id="n-start" value="${p.startDate}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">所需导游人数</label>
+              <input type="number" class="form-control" id="n-count" value="${p.needGuides}" min="1">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">是否显示学校和年级</label>
+            <div class="flex gap-8">
+              <label><input type="checkbox" id="n-showSchool" checked> 显示学校名称</label>
+              <label><input type="checkbox" id="n-showGrade" checked> 显示年级</label>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="generateNotice()">🔄 生成通知文本</button>
+          <div id="noticeResult" class="mt-16"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>📝 粘贴接龙名单</h3></div>
+        <div class="card-body">
+          <div class="alert alert-info mb-16">
+            💡 将微信群接龙结果复制粘贴到下方，系统按原始顺序匹配导游档案。同名、缺手机号或资料不一致的条目会进入人工确认。
+          </div>
+          <div class="form-group">
+            <label class="form-label">接龙文本（粘贴区）</label>
+            <textarea class="form-control" id="signupText" style="font-family:monospace;min-height:160px" placeholder="1. 王晨 138****0001
+2. 李敏 139****0002
+3. 周妍 137****0003
+4. 陈浩 136****0004（导游证已过期）
+5. 刘芳 135****0005
+6. 赵琳（缺手机号）"></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="processSignup()">🔍 解析并匹配导游档案</button>
+          <div id="signupResult" class="mt-16"></div>
+        </div>
+      </div>
+    `;
+  },
+
+  /* ---------- P07 导游安排 ---------- */
+  P07() {
+    const p = currentProject;
+    const assigned = p.assignedGuides.map(g => {
+      const gg = mockData.guides.find(x => x.id === g.guideId);
+      const cls = p.classes.find(c => c.id === g.classId);
+      return { ...g, ...gg, className: cls ? cls.name : '未分配' };
+    });
+    const assignedIds = assigned.map(g => g.guideId);
+    const unassigned = mockData.guides.filter(g => !assignedIds.includes(g.id) && g.status === 'active' && g.certStatus === 'valid');
+
+    return `
+      <div class="flex items-center mb-24">
+        <h1 class="page-title" style="margin-bottom:0">🎫 导游安排</h1>
+        <div style="margin-left:auto" class="flex gap-8 items-center">
+          <span class="text-muted text-sm">已安排 ${assigned.length}/${p.needGuides} 人</span>
+          <button class="btn btn-primary btn-sm" onclick="openModal('assignGuide')">➕ 分配导游</button>
+        </div>
+      </div>
+
+      ${p.assignedGuides.length < p.needGuides ? `
+        <div class="alert alert-warning mb-16">⚠️ 导游尚未安排齐备，还需 ${p.needGuides - p.assignedGuides.length} 人</div>
+      ` : ''}
+
+      <div class="card mb-24">
+        <div class="card-header"><h3>✅ 已分配导游（${assigned.length}人）</h3></div>
+        <div class="card-body">
+          ${assigned.length === 0 ? '<div class="empty-state"><div class="icon">🎫</div><p>暂无已分配导游</p></div>' : ''}
+          ${assigned.map(g => `
+            <div class="person-card">
+              <div class="person-avatar ${g.gender === '女' ? 'female' : ''}">${g.name[0]}</div>
+              <div class="person-info">
+                <div class="person-name">${g.name} <span class="tag tag-primary" style="font-size:10px">${g.gender}</span></div>
+                <div class="person-meta">📞 ${g.phone} · 导游证 ${g.certNo} · 带团 ${g.tours}次 · 评分 ${g.rating}</div>
+                <div class="text-xs text-muted">分配班级：<strong>${g.className}</strong> · 状态：已分配</div>
+              </div>
+              <div class="person-actions">
+                <button class="btn btn-outline btn-sm" onclick="openModal('guideDetail','${g.id}')">详情</button>
+                <button class="btn btn-danger btn-sm" onclick="removeGuide('${g.guideId}')">移出</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>📋 可分配导游（${unassigned.length}人）</h3></div>
+        <div class="card-body">
+          ${unassigned.length === 0 ? '<div class="empty-state"><div class="icon">✅</div><p>所有导游已分配完毕</p></div>' : ''}
+          ${unassigned.map(g => `
+            <div class="person-card">
+              <div class="person-avatar ${g.gender === '女' ? 'female' : ''}">${g.name[0]}</div>
+              <div class="person-info">
+                <div class="person-name">${g.name} <span class="tag tag-primary" style="font-size:10px">${g.gender}</span></div>
+                <div class="person-meta">📞 ${g.phone} · 导游证 ${g.certNo} · 带团 ${g.tours}次</div>
+                <div class="text-xs">
+                  <span class="tag tag-${g.certStatus === 'valid' ? 'primary' : 'danger'}" style="font-size:10px">
+                    ${g.certStatus === 'valid' ? '✅ 证件有效' : '❌ 证件' + (g.certStatus === 'expired' ? '已过期' : '临期')}
+                  </span>
+                  <span class="tag tag-${g.status === 'active' ? 'primary' : 'gray'}" style="font-size:10px">
+                    ${g.status === 'active' ? '合作中' : '停用'}
+                  </span>
+                </div>
+              </div>
+              <div class="person-actions">
+                <button class="btn btn-primary btn-sm" onclick="assignGuide('${g.id}')">分配到班级</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="card mt-16">
+        <div class="card-header"><h3>📋 不可用导游</h3></div>
+        <div class="card-body">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>姓名</th><th>性别</th><th>电话</th><th>证件状态</th><th>合作状态</th><th>不可用原因</th></tr></thead>
+              <tbody>
+                ${mockData.guides.filter(g => g.certStatus !== 'valid' || g.status !== 'active').map(g => `
+                  <tr>
+                    <td><strong>${g.name}</strong></td>
+                    <td>${g.gender}</td>
+                    <td>${g.phone}</td>
+                    <td><span class="tag tag-${g.certStatus === 'valid' ? 'primary' : 'danger'}">${g.certStatus === 'valid' ? '有效' : g.certStatus === 'expired' ? '已过期' : '临期'}</span></td>
+                    <td><span class="tag tag-${g.status === 'active' ? 'primary' : 'gray'}">${g.status === 'active' ? '合作中' : '停用'}</span></td>
+                    <td class="text-danger">
+                      ${g.certStatus === 'expired' ? '🔴 导游证已过期，无法安排' : (g.status !== 'active' ? '🔴 已停用，无法安排' : '')}
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  /* ---------- P08 乘车安排 ---------- */
+  P08() {
+    const p = currentProject;
+    const s = calcProjectStats(p);
+    const totalRiders = s.rideCount;
+    const totalSeats = s.capacity;
+    const totalEmpty = totalSeats - totalRiders;
+
+    return `
+      <div class="flex items-center mb-24">
+        <h1 class="page-title" style="margin-bottom:0">🚌 乘车安排</h1>
+        <div style="margin-left:auto" class="flex gap-8">
+          <button class="btn btn-outline btn-sm" onclick="navigate('P11')">📥 导入车辆Excel</button>
+          <button class="btn btn-primary btn-sm" onclick="openModal('addCar')">➕ 添加车辆</button>
+        </div>
+      </div>
+
+      ${totalEmpty < 0 ? `<div class="alert alert-danger mb-16">🔴 超载！乘车人数 ${totalRiders} 超过可用座位 ${totalSeats}，超出 ${-totalEmpty} 人，必须调整</div>` : ''}
+
+      <div class="card mb-24">
+        <div class="card-header">
+          <h3>🚐 车辆安排表</h3>
+          <div style="margin-left:auto;font-size:12px;color:var(--text-muted)">
+            乘车 ${totalRiders} 人 / ${totalSeats} 座 · 空位 ${totalEmpty} · 合计 ${p.drivers.length} 车
+          </div>
+        </div>
+        <div class="card-body">
+          ${p.drivers.length === 0 ? '<div class="empty-state"><div class="icon">🚌</div><p>暂无乘车安排</p></div>' : ''}
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>车号</th><th>车牌</th><th>车型</th><th>座位</th><th>分配班级</th><th>学生</th><th>老师</th><th>导游</th><th>乘车人数</th><th>空位</th><th>司机</th><th>状态</th><th>操作</th></tr>
+              </thead>
+              <tbody>
+                ${p.drivers.map((d, i) => {
+                  const cls = p.classes.find(c => c.id === d.classId);
+                  const rideStudents = cls ? cls.students : 0;
+                  const rideTea = cls ? cls.teachers.filter(t => t.ride).length : 0;
+                  const rideGuide = p.assignedGuides.filter(g => g.classId === d.classId).length;
+                  const rideCount = rideStudents + rideTea + rideGuide;
+                  const empty = d.seats - rideCount;
+                  const over = empty < 0;
+                  return `
+                    <tr class="${over ? 'text-danger' : ''}">
+                      <td><strong>${i+1}号车</strong></td>
+                      <td>${d.carNo}</td>
+                      <td>${d.carModel}</td>
+                      <td>${d.seats}</td>
+                      <td>${cls ? cls.name : '—'}</td>
+                      <td>${rideStudents}</td>
+                      <td>${rideTea}</td>
+                      <td>${rideGuide}</td>
+                      <td><strong>${rideCount}</strong></td>
+                      <td class="${over ? 'text-danger font-bold' : 'text-success'}">${empty}</td>
+                      <td>${d.name}<br><span class="text-xs text-muted">${d.phone}</span></td>
+                      <td>${over ? '<span class="tag tag-danger">超载</span>' : '<span class="tag tag-primary">正常</span>'}</td>
+                      <td><button class="btn btn-outline btn-sm" onclick="openModal('editCar',${i})">编辑</button></td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+              <tfoot>
+                <tr style="background:#f7f9fc;font-weight:600">
+                  <td>合计</td><td></td><td></td><td>${totalSeats}</td><td></td>
+                  <td>${s.totalStudents}</td><td>${s.rideTeachers}</td><td>${s.totalGuides}</td>
+                  <td>${totalRiders}</td>
+                  <td class="${totalEmpty < 0 ? 'text-danger' : 'text-success'}">${totalEmpty}</td>
+                  <td></td><td></td><td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>📐 自动安排建议规则</h3></div>
+        <div class="card-body">
+          <ol style="padding-left:20px;font-size:13px;color:var(--text-muted);line-height:2">
+            <li>一班一车优先，尽量不拆班</li>
+            <li>班级按顺序安排车辆</li>
+            <li>在不超载的前提下减少座位浪费</li>
+            <li>同一学校尽量使用同一车队</li>
+            <li>人工调整后立即重新校验</li>
+          </ol>
+          <div class="notif-bar" style="margin-top:12px">
+            💡 当前：${p.classes.length}个班，${p.drivers.length}辆车，${p.assignedGuides.length}名导游。自动建议已按规则分配。
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  /* ---------- P09 住宿安排 ---------- */
+  P09() {
+    const p = currentProject;
+    if (!p.needLodging) return `<div class="empty-state"><div class="icon">🏨</div><p>本项目为一日游，无需住宿安排</p><button class="btn btn-outline" onclick="navigate('P04')">← 返回项目总览</button></div>`;
+
+    const s = calcProjectStats(p);
+    const lodgingCount = s.totalStudents + s.totalGuides + s.totalTeachers + s.totalDrivers;
+    const totalCapacity = p.rooms.reduce((sum, r) => sum + r.capacity, 0);
+    const totalAssigned = p.rooms.reduce((sum, r) => sum + r.count, 0);
+    const emptyBeds = totalCapacity - totalAssigned;
+    const maleRooms = p.rooms.filter(r => r.gender === '男');
+    const femaleRooms = p.rooms.filter(r => r.gender === '女');
+
+    return `
+      <div class="flex items-center mb-24">
+        <h1 class="page-title" style="margin-bottom:0">🏨 住宿安排</h1>
+        <div style="margin-left:auto" class="flex gap-8">
+          <button class="btn btn-outline btn-sm" onclick="navigate('P11')">📥 导入房间Excel</button>
+          <button class="btn btn-primary btn-sm" onclick="openModal('addRoom')">➕ 添加房间</button>
+        </div>
+      </div>
+
+      <div class="stat-grid mb-24">
+        <div class="stat-card">
+          <div class="stat-label">需住宿人数</div>
+          <div class="stat-value">${lodgingCount}</div>
+          <div class="stat-sub">学生${s.totalStudents} + 导游${s.totalGuides} + 老师${s.totalTeachers} + 司机${s.totalDrivers}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">已安排房间</div>
+          <div class="stat-value">${p.rooms.length}间</div>
+          <div class="stat-sub">总容量 ${totalCapacity} · 空床 ${emptyBeds}</div>
+        </div>
+        <div class="stat-card ${emptyBeds >= 0 ? '' : 'danger'}">
+          <div class="stat-label">容量状态</div>
+          <div class="stat-value">${emptyBeds >= 0 ? '✅ 充足' : '❌ 不足'}</div>
+          <div class="stat-sub">${emptyBeds >= 0 ? '有空余床位' : '缺少' + (-emptyBeds) + '个床位'}</div>
+        </div>
+      </div>
+
+      <div class="card mb-24">
+        <div class="card-header"><h3>🛏️ 分房明细</h3></div>
+        <div class="card-body">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>酒店</th><th>楼栋</th><th>楼层</th><th>房号</th><th>房型</th><th>容量</th><th>分配班级/角色</th><th>性别</th><th>安排人数</th><th>状态</th></tr></thead>
+              <tbody>
+                ${p.rooms.map(r => {
+                  const over = r.count > r.capacity;
+                  const cls = p.classes.find(c => c.id === r.classId);
+                  return `
+                    <tr class="${over ? 'text-danger' : ''}">
+                      <td>${r.hotel}</td>
+                      <td>${r.building}</td>
+                      <td>${r.floor}</td>
+                      <td><strong>${r.roomNo}</strong></td>
+                      <td>${r.type}</td>
+                      <td>${r.capacity}</td>
+                      <td>${cls ? cls.name : r.role}</td>
+                      <td>${r.gender}</td>
+                      <td><strong>${r.count}</strong></td>
+                      <td>${over ? '<span class="tag tag-danger">超员</span>' : '<span class="tag tag-primary">正常</span>'}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>📐 分房规则说明</h3></div>
+        <div class="card-body">
+          <ol style="padding-left:20px;font-size:13px;color:var(--text-muted);line-height:2">
+            <li>男生和女生分开安排，不混住</li>
+            <li>同班优先集中，房间号尽量连续</li>
+            <li>一个楼层无法容纳时换楼层，低年级优先较低楼层</li>
+            <li>剩余少量学生可跨班拼房，记录主班、拼入班、双方人数和原因</li>
+            <li>导游、老师、司机集中安排，继续遵守性别和容量限制</li>
+          </ol>
+        </div>
+      </div>
+    `;
+  },
+
+  /* ---------- P10 用餐安排 ---------- */
+  P10() {
+    const p = currentProject;
+    if (!p.needMeal) return `<div class="empty-state"><div class="icon">🍽️</div><p>本项目不含餐，无需用餐安排</p><button class="btn btn-outline" onclick="navigate('P04')">← 返回项目总览</button></div>`;
+
+    const s = calcProjectStats(p);
+    const mealCount = s.totalStudents + s.totalGuides + s.totalTeachers + s.totalDrivers;
+    const baseMeal = s.totalStudents + s.totalGuides; // 学生+导游
+    const suggestedTables = Math.ceil(baseMeal / 10);
+
+    return `
+      <div class="flex items-center mb-24">
+        <h1 class="page-title" style="margin-bottom:0">🍽️ 用餐安排</h1>
+        <div style="margin-left:auto" class="flex gap-8">
+          <button class="btn btn-outline btn-sm" onclick="navigate('P11')">📥 导入用餐Excel</button>
+          <button class="btn btn-primary btn-sm" onclick="openModal('addMeal')">➕ 添加餐次</button>
+        </div>
+      </div>
+
+      <div class="stat-grid mb-24">
+        <div class="stat-card">
+          <div class="stat-label">每餐就餐人数</div>
+          <div class="stat-value">${mealCount}</div>
+          <div class="stat-sub">学生${s.totalStudents} + 导游${s.totalGuides} + 老师${s.totalTeachers} + 司机${s.totalDrivers}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">学生+导游基础建议桌数</div>
+          <div class="stat-value">${suggestedTables}桌</div>
+          <div class="stat-sub">按每桌10人计算，${baseMeal}人</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">已安排餐次</div>
+          <div class="stat-value">${p.meals.length}</div>
+          <div class="stat-sub">含 ${p.mealCount} 个餐次</div>
+        </div>
+      </div>
+
+      <div class="card mb-24">
+        <div class="card-header"><h3>🍽️ 餐次安排明细</h3></div>
+        <div class="card-body">
+          ${p.meals.length === 0 ? '<div class="empty-state"><div class="icon">🍽️</div><p>暂无用餐安排</p></div>' : ''}
+          ${p.meals.map((m, i) => {
+            const capacity = m.booked * m.standard;
+            const surplus = capacity - mealCount;
+            return `
+              <div style="background:#f7f9fc;border-radius:8px;padding:16px;margin-bottom:12px;border:1px solid var(--border)">
+                <div class="flex items-center gap-8 mb-12">
+                  <strong>${m.date} ${m.meal}</strong>
+                  <span class="tag tag-info">${m.restaurant}</span>
+                  <span class="tag tag-primary">${m.time}</span>
+                </div>
+                <div class="detail-grid">
+                  <div class="detail-item"><div class="label">标准桌人数</div><div class="value">${m.standard}人/桌</div></div>
+                  <div class="detail-item"><div class="label">预订桌数</div><div class="value">${m.booked}桌</div></div>
+                  <div class="detail-item"><div class="label">总容量</div><div class="value">${capacity}人</div></div>
+                  <div class="detail-item"><div class="label">就餐人数</div><div class="value">${mealCount}人</div></div>
+                  <div class="detail-item"><div class="label">余位</div><div class="value ${surplus >= 0 ? 'text-success' : 'text-danger'}">${surplus >= 0 ? surplus + '位' : '不足' + (-surplus) + '位'}</div></div>
+                </div>
+                <div class="text-xs text-muted mt-16">桌号：${m.tables.join('、')}</div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>📐 用餐安排规则</h3></div>
+        <div class="card-body">
+          <ol style="padding-left:20px;font-size:13px;color:var(--text-muted);line-height:2">
+            <li>学生和导游按每桌10人计算基础建议桌数</li>
+            <li>老师、司机等从项目随团人员汇总单列，由负责人人工追加桌数</li>
+            <li>班级按顺序集中就座，同班桌号尽量连续</li>
+            <li>不足一桌时可与后一班拼桌，标明各班人数</li>
+            <li>每餐每个桌号唯一，多家餐厅分别记录</li>
+          </ol>
+        </div>
+      </div>
+    `;
+  },
+
+  /* ---------- P11 资料导入 ---------- */
+  P11() {
+    return `
+      <h1 class="page-title">📥 统一资料导入</h1>
+      <div class="alert alert-info mb-16">
+        💡 所有资料先进入临时解析区，预览确认后才写入正式数据。不允许跳过预览直接写入。
+      </div>
+
+      <div class="card mb-24">
+        <div class="card-header"><h3>📁 选择资料类型</h3></div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">资料类型</label>
+            <select class="form-control" id="importType" onchange="showImportOptions()">
+              <option value="">— 选择导入类型 —</option>
+              <option value="class">班级与老师资料（Excel）</option>
+              <option value="signup">导游接龙名单（粘贴文字）</option>
+              <option value="transport">乘车安排表（Excel）</option>
+              <option value="lodging">住宿安排表（Excel）</option>
+              <option value="meal">用餐安排表（Excel）</option>
+              <option value="school">学校资料（Excel/Word）</option>
+              <option value="guide">导游档案（Excel）</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">目标项目</label>
+            <select class="form-control" id="importProject">
+              <option value="E2E-001">青禾实验学校 · 初二（多日游）</option>
+              <option value="E2E-002">星海外国语学校 · 初一（一日游）</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-24 hidden" id="excelUploadSection">
+        <div class="card-header"><h3>📤 上传文件</h3></div>
+        <div class="card-body">
+          <div class="notif-bar" style="margin-bottom:16px">
+            📋 请使用标准模板上传 Excel 文件。字段映射将在下一步预览中确认。
+          </div>
+          <div class="form-group">
+            <label class="form-label">选择文件</label>
+            <input type="file" class="form-control" accept=".xlsx,.xls,.docx" id="importFile">
+          </div>
+          <div class="flex gap-8">
+            <button class="btn btn-primary" onclick="parseFile()">🔍 解析并预览</button>
+          </div>
+          <div id="parseResult" class="mt-16"></div>
+        </div>
+      </div>
+
+      <div class="card mb-24 hidden" id="textImportSection">
+        <div class="card-header"><h3>📝 粘贴文字</h3></div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">接龙/名单文本</label>
+            <textarea class="form-control" style="font-family:monospace;min-height:200px" placeholder="粘贴接龙文本或名单，每行一条记录"></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="parseText()">🔍 解析并预览</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>📜 最近导入记录</h3></div>
+        <div class="card-body">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>时间</th><th>项目</th><th>资料类型</th><th>成功</th><th>失败</th><th>状态</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>2026-09-08 10:23</td>
+                  <td>E2E-001</td>
+                  <td>班级与老师</td>
+                  <td class="text-success">3条</td>
+                  <td class="text-muted">0条</td>
+                  <td><span class="tag tag-primary">成功</span></td>
+                </tr>
+                <tr>
+                  <td>2026-09-08 10:05</td>
+                  <td>E2E-001</td>
+                  <td>Word行程</td>
+                  <td class="text-success">1条</td>
+                  <td class="text-muted">0条</td>
+                  <td><span class="tag tag-primary">成功</span></td>
+                </tr>
+                <tr>
+                  <td>2026-09-07 14:30</td>
+                  <td>E2E-002</td>
+                  <td>班级与老师</td>
+                  <td class="text-success">2条</td>
+                  <td class="text-muted">0条</td>
+                  <td><span class="tag tag-primary">成功</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  /* ---------- P12 映射预览 ---------- */
+  P12() {
+    return `
+      <h1 class="page-title">🔍 映射预览与确认</h1>
+      <div class="alert alert-info mb-16">
+        💡 请核对识别字段是否正确。发现错误时可人工修正映射，确认无误后写入正式数据。
+      </div>
+
+      <div class="card mb-24">
+        <div class="card-header"><h3>📊 字段识别结果（班级Excel）</h3></div>
+        <div class="card-body">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>原始列名</th><th>识别为</th><th>映射状态</th><th>操作</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>班级</td><td>班级名称</td><td><span class="tag tag-primary">✅ 已匹配</span></td><td>—</td></tr>
+                <tr><td>总人数</td><td>学生总人数</td><td><span class="tag tag-primary">✅ 已匹配</span></td><td>—</td></tr>
+                <tr><td>男</td><td>男生人数</td><td><span class="tag tag-primary">✅ 已匹配</span></td><td>—</td></tr>
+                <tr><td>女</td><td>女生人数</td><td><span class="tag tag-primary">✅ 已匹配</span></td><td>—</td></tr>
+                <tr><td>班主任</td><td>班主任姓名</td><td><span class="tag tag-primary">✅ 已匹配</span></td><td>—</td></tr>
+                <tr><td>班主任电话</td><td>班主任电话</td><td><span class="tag tag-warning">⚠️ 格式异常</span></td><td><button class="btn btn-outline btn-sm">修正</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-24">
+        <div class="card-header"><h3>👁️ 数据预览</h3></div>
+        <div class="card-body">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>#</th><th>班级名称</th><th>总人数</th><th>男生</th><th>女生</th><th>班主任</th><th>需导游</th><th>校验</th></tr></thead>
+              <tbody>
+                <tr><td>1</td><td>初二 801 班</td><td>42</td><td>22</td><td>20</td><td>陈建国</td><td>1</td><td><span class="tag tag-primary">✅</span></td></tr>
+                <tr><td>2</td><td>初二 802 班</td><td>38</td><td>18</td><td>20</td><td>周海燕</td><td>1</td><td><span class="tag tag-primary">✅</span></td></tr>
+                <tr><td>3</td><td>初二 803 班</td><td>45</td><td>23</td><td>22</td><td>吴志强</td><td>1</td><td><span class="tag tag-primary">✅</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert alert-warning mb-16">
+        ⚠️ 检测到 1 处格式异常（班主任电话），不影响写入。建议人工核对。
+      </div>
+
+      <div class="flex gap-8">
+        <button class="btn btn-primary" onclick="confirmImport()">✅ 确认写入正式数据</button>
+        <button class="btn btn-outline" onclick="navigate('P11')">← 返回重新上传</button>
+      </div>
+    `;
+  },
+
+  /* ---------- P13 学校库 ---------- */
+  P13() {
+    return `
+      <div class="flex items-center mb-24">
+        <h1 class="page-title" style="margin-bottom:0">🏫 学校库</h1>
+        <div style="margin-left:auto">
+          <button class="btn btn-primary btn-sm" onclick="openModal('addSchool')">➕ 新增学校</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>学校列表（${mockData.schools.length}所）</h3></div>
+        <div class="card-body">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>学校编号</th><th>学校名称</th><th>常用联系人</th><th>联系电话</th><th>合作备注</th><th>状态</th><th>操作</th></tr></thead>
+              <tbody>
+                ${mockData.schools.map(s => `
+                  <tr>
+                    <td><code>${s.id}</code></td>
+                    <td><strong>${s.name}</strong></td>
+                    <td>${s.contact}</td>
+                    <td>${s.phone}</td>
+                    <td>${s.note || '—'}</td>
+                    <td><span class="tag tag-${s.status === 'active' ? 'primary' : 'gray'}">${s.status === 'active' ? '合作中' : '停用'}</span></td>
+                    <td>
+                      <button class="btn btn-outline btn-sm" onclick="openModal('editSchool','${s.id}')">编辑</button>
+                      <button class="btn btn-outline btn-sm" onclick="useSchool('${s.id}')">✏️ 新建项目</button>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+          <div class="notif-bar" style="margin-top:16px">
+            💡 年级、班级、老师和学生人数属于具体项目，不写入学校库。新建项目时可带入学校默认联系人。
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  /* ---------- P14 导游列表 ---------- */
+  P14() {
+    return `
+      <div class="flex items-center mb-24">
+        <h1 class="page-title" style="margin-bottom:0">🎫 导游库</h1>
+        <div style="margin-left:auto">
+          <button class="btn btn-primary btn-sm" onclick="openModal('addGuide')">➕ 新增导游</button>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="search-box"><span>🔍</span><input placeholder="搜索姓名、电话、证件号..." oninput="filterGuides(this.value)"></div>
+        <div class="toolbar-right">
+          <select class="form-control" style="width:auto">
+            <option value="">全部状态</option>
+            <option>合作中</option><option>暂停</option><option>停用</option>
+          </select>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>导游档案（${mockData.guides.length}人）</h3></div>
+        <div class="card-body">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>姓名</th><th>性别</th><th>电话</th><th>导游证</th><th>证件有效期</th><th>证件状态</th><th>合作状态</th><th>带团次数</th><th>评分</th><th>操作</th></tr></thead>
+              <tbody>
+                ${mockData.guides.map(g => `
+                  <tr>
+                    <td><strong>${g.name}</strong></td>
+                    <td>${g.gender}</td>
+                    <td>${g.phone}</td>
+                    <td><code>${g.certNo}</code></td>
+                    <td>${g.certExpiry}</td>
+                    <td><span class="tag tag-${g.certStatus === 'valid' ? 'primary' : 'danger'}">${g.certStatus === 'valid' ? '有效' : '已过期'}</span></td>
+                    <td><span class="tag tag-${g.status === 'active' ? 'primary' : 'gray'}">${g.status === 'active' ? '合作中' : '停用'}</span></td>
+                    <td>${g.tours}次</td>
+                    <td>⭐ ${g.rating}</td>
+                    <td>
+                      <button class="btn btn-outline btn-sm" onclick="openModal('guideDetail','${g.id}')">详情</button>
+                      <button class="btn btn-outline btn-sm" onclick="navigate('P15')">档案</button>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  /* ---------- P15 导游档案 ---------- */
+  P15() {
+    const g = mockData.guides[0];
+    return `
+      <div class="flex items-center mb-24">
+        <h1 class="page-title" style="margin-bottom:0">📁 导游档案详情</h1>
+        <div style="margin-left:auto" class="flex gap-8">
+          <button class="btn btn-outline btn-sm" onclick="navigate('P14')">← 返回列表</button>
+          <button class="btn btn-outline btn-sm" onclick="openModal('guideDetail','${g.id}')">编辑档案</button>
+        </div>
+      </div>
+
+      <div class="card mb-24">
+        <div class="card-header"><h3>👤 基础资料</h3></div>
+        <div class="card-body">
+          <div class="detail-grid">
+            <div class="detail-item"><div class="label">姓名</div><div class="value font-bold">${g.name}</div></div>
+            <div class="detail-item"><div class="label">性别</div><div class="value">${g.gender}</div></div>
+            <div class="detail-item"><div class="label">工作电话</div><div class="value">${g.phone}</div></div>
+            <div class="detail-item"><div class="label">合作状态</div><div class="value"><span class="tag tag-${g.status === 'active' ? 'primary' : 'gray'}">${g.status === 'active' ? '合作中' : '停用'}</span></div></div>
+            <div class="detail-item"><div class="label">带团次数</div><div class="value">${g.tours}次</div></div>
+            <div class="detail-item"><div class="label">好评次数</div><div class="value">${Math.floor(g.tours * 0.8)}次</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-24">
+        <div class="card-header">
+          <h3>🔐 证件资料</h3>
+          <div style="margin-left:auto">
+            <button class="btn btn-primary btn-sm" onclick="viewFullCert('${g.id}')">👁️ 查看完整证件</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="detail-grid">
+            <div class="detail-item"><div class="label">导游证号码</div><div class="value">${g.certNo} <span class="text-xs text-muted">（已脱敏）</span></div></div>
+            <div class="detail-item"><div class="label">导游证有效期</div><div class="value text-success">${g.certExpiry} <span class="text-xs">(还有约${Math.floor((new Date(g.certExpiry)-new Date())/86400000)}天)</span></div></div>
+            <div class="detail-item"><div class="label">身份证号</div><div class="value">430***********0011 <span class="text-xs text-muted">（已脱敏）</span></div></div>
+            <div class="detail-item"><div class="label">证件状态</div><div class="value"><span class="tag tag-primary">✅ 有效</span></div></div>
+          </div>
+          <div class="alert alert-warning mt-16" style="margin-bottom:0">
+            ⚠️ 查看完整证件信息将产生操作记录，日志不保存完整证件值。
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-24">
+        <div class="card-header"><h3>📋 历史带团记录</h3></div>
+        <div class="card-body">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>项目</th><th>学校</th><th>日期</th><th>分配班级</th><th>评价</th></tr></thead>
+              <tbody>
+                <tr><td>2026春季研学</td><td>青禾实验学校</td><td>2026-04-20</td><td>初一201班</td><td>⭐ 5分</td></tr>
+                <tr><td>2026劳动节研学</td><td>星海外国语学校</td><td>2026-05-02</td><td>初二101班</td><td>⭐ 4分</td></tr>
+                <tr><td>2026夏季研学</td><td>青云中学</td><td>2026-07-10</td><td>初三301班</td><td>⭐ 5分</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  /* ---------- P16 表格中心 ---------- */
+  P16() {
+    const p = currentProject;
+    const s = calcProjectStats(p);
+    const excCount = getExceptionCount();
+    const guideOk = p.assignedGuides.length >= p.needGuides;
+    const transportOk = p.drivers.length > 0;
+
+    return `
+      <h1 class="page-title">📑 表格中心</h1>
+
+      ${excCount > 0 || !guideOk || !transportOk ? `
+        <div class="alert alert-danger mb-16">
+          🔴 存在阻断异常或关键模块未完成，无法导出正式表格。请先处理以下问题：
+          <ul style="margin-top:8px;padding-left:20px">
+            ${!guideOk ? `<li>导游尚未安排齐备（${p.assignedGuides.length}/${p.needGuides}）</li>` : ''}
+            ${!transportOk ? `<li>乘车安排尚未完成</li>` : ''}
+            ${excCount > 0 ? `<li>存在 ${excCount} 个阻断异常</li>` : ''}
+          </ul>
+        </div>
+      ` : ''}
+
+      <div class="stat-grid mb-24">
+        <div class="stat-card ${guideOk ? '' : 'danger'}">
+          <div class="stat-label">保险名单</div>
+          <div class="stat-value">${p.assignedGuides.length}人</div>
+          <div class="stat-sub">${guideOk ? '✅ 可导出' : '❌ 导游未齐备'}</div>
+        </div>
+        <div class="stat-card ${transportOk ? '' : 'danger'}">
+          <div class="stat-label">乘车安排表</div>
+          <div class="stat-value">${p.drivers.length}车/${s.totalStudents}学生</div>
+          <div class="stat-sub">${transportOk ? '✅ 可导出' : '❌ 未安排'}</div>
+        </div>
+        ${p.needLodging ? `
+        <div class="stat-card ${p.rooms.length > 0 ? '' : 'warning'}">
+          <div class="stat-label">住宿安排表</div>
+          <div class="stat-value">${p.rooms.length}间</div>
+          <div class="stat-sub">${p.rooms.length > 0 ? '✅ 可导出' : '❌ 未安排'}</div>
+        </div>` : ''}
+        ${p.needMeal ? `
+        <div class="stat-card ${p.meals.length > 0 ? '' : 'warning'}">
+          <div class="stat-label">用餐安排表</div>
+          <div class="stat-value">${p.meals.length}餐次</div>
+          <div class="stat-sub">${p.meals.length > 0 ? '✅ 可导出' : '❌ 未安排'}</div>
+        </div>` : ''}
+      </div>
+
+      <div class="card mb-24">
+        <div class="card-header"><h3>📋 可导出表格</h3></div>
+        <div class="card-body">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>表格类型</th><th>内容摘要</th><th>适用条件</th><th>阻断状态</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><strong>📄 保险名单</strong></td>
+                  <td>导游姓名、身份证号、电话、导游证号（${p.assignedGuides.length}人）</td>
+                  <td>导游已分配</td>
+                  <td>${guideOk ? '<span class="tag tag-primary">✅ 无阻断</span>' : '<span class="tag tag-danger">🔴 阻断</span>'}</td>
+                  <td><button class="btn btn-primary btn-sm" ${!guideOk ? 'disabled' : ''} onclick="navigate('P17')">预览并导出 →</button></td>
+                </tr>
+                <tr>
+                  <td><strong>📄 乘车安排表</strong></td>
+                  <td>${p.drivers.length}车、${s.totalStudents}学生、${s.rideTeachers}老师、${s.totalGuides}导游</td>
+                  <td>车辆已安排</td>
+                  <td>${transportOk ? '<span class="tag tag-primary">✅ 无阻断</span>' : '<span class="tag tag-danger">🔴 阻断</span>'}</td>
+                  <td><button class="btn btn-primary btn-sm" ${!transportOk ? 'disabled' : ''} onclick="navigate('P17')">预览并导出 →</button></td>
+                </tr>
+                ${p.needLodging ? `
+                <tr>
+                  <td><strong>📄 住宿安排表</strong></td>
+                  <td>${p.rooms.length}间房、${s.totalStudents + s.totalGuides + s.totalTeachers + s.totalDrivers}人</td>
+                  <td>多日游且需住宿</td>
+                  <td>${p.rooms.length > 0 ? '<span class="tag tag-primary">✅ 无阻断</span>' : '<span class="tag tag-danger">🔴 未安排</span>'}</td>
+                  <td><button class="btn btn-primary btn-sm" ${p.rooms.length === 0 ? 'disabled' : ''} onclick="navigate('P17')">预览并导出 →</button></td>
+                </tr>` : ''}
+                ${p.needMeal ? `
+                <tr>
+                  <td><strong>📄 用餐安排表</strong></td>
+                  <td>${p.meals.length}个餐次</td>
+                  <td>含餐项目</td>
+                  <td>${p.meals.length > 0 ? '<span class="tag tag-primary">✅ 无阻断</span>' : '<span class="tag tag-warning">⚠️ 未安排</span>'}</td>
+                  <td><button class="btn btn-primary btn-sm" ${p.meals.length === 0 ? 'disabled' : ''} onclick="navigate('P17')">预览并导出 →</button></td>
+                </tr>` : ''}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>📜 导出历史</h3></div>
+        <div class="card-body">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>时间</th><th>表格类型</th><th>项目</th><th>记录数</th><th>状态</th></tr></thead>
+              <tbody>
+                <tr><td>2026-09-08 11:15</td><td>乘车安排表</td><td>E2E-001</td><td>3车/133人</td><td><span class="tag tag-primary">✅ 成功</span></td></tr>
+                <tr><td>2026-09-08 11:20</td><td>保险名单</td><td>E2E-001</td><td>3人</td><td><span class="tag tag-primary">✅ 成功</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  /* ---------- P17 预览与导出 ---------- */
+  P17() {
+    const p = currentProject;
+    const s = calcProjectStats(p);
+    return `
+      <div class="flex items-center mb-24">
+        <h1 class="page-title" style="margin-bottom:0">⬇️ 预览与导出</h1>
+        <div style="margin-left:auto">
+          <button class="btn btn-outline btn-sm" onclick="navigate('P16')">← 返回表格中心</button>
+        </div>
+      </div>
+
+      <div class="tabs mb-16">
+        <button class="tab-btn active" onclick="switchTab(this,'tab-insurance')">📄 保险名单</button>
+        <button class="tab-btn" onclick="switchTab(this,'tab-transport')">🚌 乘车安排表</button>
+        ${p.needLodging ? `<button class="tab-btn" onclick="switchTab(this,'tab-lodging')">🏨 住宿安排表</button>` : ''}
+        ${p.needMeal ? `<button class="tab-btn" onclick="switchTab(this,'tab-meal')">🍽️ 用餐安排表</button>` : ''}
+      </div>
+
+      <div id="tab-insurance">
+        <div class="alert alert-info mb-16">
+          📋 保险名单预览（导游姓名、证件已脱敏）。完整导出需二次确认用途并记录日志。
+        </div>
+        <div class="card mb-16">
+          <div class="card-body">
+            <div class="export-preview">
+              <strong>保险名单 - ${p.school} ${p.grade}研学团</strong><br>
+              出团日期：${p.startDate} ~ ${p.endDate}<br>
+              导出时间：${new Date().toLocaleString('zh-CN')}<br>
+              ──────────────────────────────────<br>
+              序号 | 姓名 | 性别 | 身份证号 | 联系电话 | 导游证号<br>
+              1 | 王晨 | 男 | 430***********0011 | 138****0001 | 430****0011<br>
+              2 | 周妍 | 女 | 430***********0013 | 137****0003 | 430****0013<br>
+              3 | 刘芳 | 女 | 430***********0015 | 135****0005 | 430****0015<br>
+              ──────────────────────────────────<br>
+              合计：3人
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="exportFile('insurance')">⬇️ 导出Excel（需确认用途）</button>
+      </div>
+
+      <div id="tab-transport" class="hidden">
+        <div class="card mb-16">
+          <div class="card-body">
+            <div class="export-preview">
+              <strong>乘车安排表 - ${p.school} ${p.grade}研学团</strong><br>
+              出团日期：${p.startDate} ~ ${p.endDate}<br>
+              集合地点：${p.gather} · ${p.gatherTime}<br>
+              ──────────────────────────────────<br>
+              车号 | 班级 | 学生 | 男生 | 女生 | 老师 | 导游 | 乘车人数 | 座位 | 空位 | 车牌 | 司机 | 司机电话<br>
+              1号车 | 初二801班 | 42 | 22 | 20 | 2 | 1 | 45 | 49 | 4 | 湘A12345 | 张伟 | 139****2001<br>
+              2号车 | 初二802班 | 38 | 18 | 20 | 1 | 1 | 40 | 49 | 9 | 湘A12346 | 李强 | 139****2002<br>
+              3号车 | 初二803班 | 45 | 23 | 22 | 2 | 1 | 48 | 49 | 1 | 湘A12347 | 王勇 | 139****2003<br>
+              ──────────────────────────────────<br>
+              合计 | 3班 | 125 | 63 | 62 | 5 | 3 | 133 | 147 | 14
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="exportFile('transport')">⬇️ 导出Excel</button>
+      </div>
+
+      ${p.needLodging ? `
+      <div id="tab-lodging" class="hidden">
+        <div class="card mb-16">
+          <div class="card-body">
+            <div class="export-preview">
+              <strong>住宿安排表 - ${p.school} ${p.grade}研学团</strong><br>
+              出团日期：${p.startDate} ~ ${p.endDate}<br>
+              住宿总人数：${s.totalStudents + s.totalGuides + s.totalTeachers + s.totalDrivers}人 | 房间：${p.rooms.length}间 | 容量：${p.rooms.reduce((sum, r) => sum + r.capacity, 0)}人<br>
+              ──────────────────────────────────<br>
+              房号 | 酒店 | 楼栋 | 楼层 | 房型 | 容量 | 分配班级/角色 | 性别 | 安排人数<br>
+              ${p.rooms.slice(0,8).map(r => `${r.roomNo} | ${r.hotel} | ${r.building} | ${r.floor} | ${r.type} | ${r.capacity} | ${p.classes.find(c=>c.id===r.classId)?.name || r.role} | ${r.gender} | ${r.count}`).join('<br>')}
+              ...（共${p.rooms.length}条）
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="exportFile('lodging')">⬇️ 导出Excel</button>
+      </div>` : ''}
+
+      ${p.needMeal ? `
+      <div id="tab-meal" class="hidden">
+        <div class="card mb-16">
+          <div class="card-body">
+            <div class="export-preview">
+              <strong>用餐安排表 - ${p.school} ${p.grade}研学团</strong><br>
+              出团日期：${p.startDate} ~ ${p.endDate}<br>
+              ──────────────────────────────────<br>
+              ${p.meals.map(m => `【${m.date} ${m.meal}】${m.restaurant} ${m.time}<br>餐厅 | 餐次 | 桌号范围 | 预订桌数 | 建议桌数 | 就餐人数 | 容量 | 余位<br>${m.restaurant} | ${m.meal} | ${m.tables[0]}-${m.tables[m.tables.length-1]} | ${m.booked}桌 | ${Math.ceil((s.totalStudents+s.totalGuides)/10)}桌 | ${s.totalStudents+s.totalGuides+s.totalTeachers+s.totalDrivers}人 | ${m.booked*m.standard}人 | ${m.booked*m.standard-(s.totalStudents+s.totalGuides+s.totalTeachers+s.totalDrivers)}<br>`).join('────────────────────────────────────<br>')}
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="exportFile('meal')">⬇️ 导出Excel</button>
+      </div>` : ''}
+
+      <div class="alert alert-warning mt-16">
+        ⚠️ 源数据变化后旧预览自动过期，必须重新生成。导出成功以文件实际存在、可打开、中文不乱码为依据。
+      </div>
+    `;
+  },
+
+  /* ---------- P18 异常中心 ---------- */
+  P18() {
+    const allExc = mockData.projects.flatMap(p => p.exceptions.map(e => ({ ...e, projectName: p.school + ' ' + p.grade })));
+    const pending = allExc.filter(e => e.status === 'pending');
+    return `
+      <h1 class="page-title">⚠️ 异常中心</h1>
+      <div class="toolbar">
+        <div class="search-box"><span>🔍</span><input placeholder="搜索异常..."></div>
+        <select class="form-control" style="width:auto">
+          <option value="">全部等级</option>
+          <option>阻断</option><option>警告</option><option>提醒</option>
+        </select>
+        <select class        <select class="form-control" style="width:auto">
+          <option value="">全部状态</option>
+          <option>待处理</option><option>已确认</option><option>已解决</option>
+        </select>
+      </div>
+      ${pending.length > 0 ? `<div class="alert alert-danger mb-16">🔴 当前有 ${pending.length} 个阻断/警告异常，必须处理后才能导出</div>` : `<div class="notif-bar">✅ 当前无待处理异常</div>`}
+      <div class="card mb-24">
+        <div class="card-header"><h3>异常记录（${allExc.length}条）</h3></div>
+        <div class="card-body">
+          ${allExc.length === 0 ? '<div class="empty-state"><div class="icon">✅</div><p>暂无异常记录</p></div>' : ''}
+          ${allExc.map(e => `
+            <div class="alert ${e.type === 'warning' ? 'alert-warning' : 'alert-danger'}">
+              <span>${e.type === 'warning' ? '⚠️' : '🔴'}</span>
+              <div style="flex:1">
+                <strong>${e.title}</strong> — ${e.desc}
+                <div style="margin-top:6px;font-size:12px;color:var(--text-muted)">
+                  所属项目：${e.projectName} · 模块：${e.module} · 状态：<span class="tag tag-${e.status === 'pending' ? 'warning' : 'primary'}" style="font-size:10px">${e.status === 'pending' ? '待处理' : '已确认'}</span>
+                </div>
+              </div>
+              <div class="flex gap-8">
+                <button class="btn btn-outline btn-sm" onclick="resolveException('${e.id}')">确认例外</button>
+                <button class="btn btn-primary btn-sm" onclick="fixException('${e.id}')">修复</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>⚠️ 异常等级说明</h3></div>
+        <div class="card-body">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>等级</th><th>颜色</th><th>说明</th><th>处理方式</th></tr></thead>
+              <tbody>
+                <tr><td><span class="tag tag-danger">🔴 阻断</span></td><td>红色</td><td>阻断导出，必须修改源数据</td><td>修复数据或填因确认例外</td></tr>
+                <tr><td><span class="tag tag-warning">⚠️ 警告</span></td><td>橙色</td><td>异常但不影响导出</td><td>填因确认例外后继续</td></tr>
+                <tr><td><span class="tag tag-info">💡 提醒</span></td><td>蓝色</td><td>提示性信息</td><td>可忽略</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  /* ---------- P19 操作记录 ---------- */
+  P19() {
+    return `
+      <h1 class="page-title">📝 操作记录</h1>
+      <div class="toolbar">
+        <div class="search-box"><span>🔍</span><input placeholder="搜索操作内容..."></div>
+        <select class="form-control" style="width:auto">
+          <option value="">全部类型</option>
+          <option>导入</option><option>导游</option><option>导出</option><option>敏感信息</option>
+        </select>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>最近操作（${mockData.logs.length}条）</h3></div>
+        <div class="card-body">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>时间</th><th>类型</th><th>操作人</th><th>操作描述</th><th>关联项目</th></tr></thead>
+              <tbody>
+                ${mockData.logs.map(l => {
+                  const typeMap = { import: '导入', guide_assign: '导游分配', transport: '乘车安排', export: '导出', sensitive: '敏感信息查看' };
+                  const colorMap = { import: 'primary', guide_assign: 'info', transport: 'primary', export: 'primary', sensitive: 'warning' };
+                  return `
+                    <tr>
+                      <td>${l.time}</td>
+                      <td><span class="tag tag-${colorMap[l.type] || 'gray'}">${typeMap[l.type] || l.type}</span></td>
+                      <td>${l.user}</td>
+                      <td>${l.desc}</td>
+                      <td><code>${l.projectId}</code></td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  /* ---------- P20 数据备份 ---------- */
+  P20() {
+    return `
+      <h1 class="page-title">💾 数据备份与恢复</h1>
+
+      <div class="alert alert-info mb-16">
+        💡 备份文件与 Excel 导出目录分开设置权限。退出前自动提醒，保留最近30天每日备份和12个月末备份。
+      </div>
+
+      <div class="card mb-24">
+        <div class="card-header"><h3>📦 当前备份文件</h3></div>
+        <div class="card-body">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>时间</th><th>类型</th><th>大小</th><th>状态</th><th>操作</th></tr></thead>
+              <tbody>
+                ${mockData.backups.map(b => `
+                  <tr>
+                    <td>${b.time}</td>
+                    <td><span class="tag tag-${b.type === 'monthly' ? 'warning' : 'primary'}">${b.type === 'monthly' ? '月备份' : '日备份'}</span></td>
+                    <td>${b.size}</td>
+                    <td><span class="tag tag-primary">✅ ${b.status === 'verified' ? '已校验' : b.status}</span></td>
+                    <td>
+                      <button class="btn btn-outline btn-sm" onclick="downloadBackup('${b.id}')">⬇️ 下载</button>
+                      <button class="btn btn-outline btn-sm" onclick="verifyBackup('${b.id}')">🔍 校验</button>
+                      <button class="btn btn-danger btn-sm" onclick="restoreBackup('${b.id}')">↩️ 恢复</button>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-24">
+        <div class="card-header"><h3>⚙️ 备份设置</h3></div>
+        <div class="card-body">
+          <div class="form-row mb-16">
+            <div class="form-group">
+              <label class="form-label">备份保留策略</label>
+              <select class="form-control">
+                <option>保留最近30天日备份 + 12个月末备份</option>
+                <option>保留最近60天日备份</option>
+                <option>全部保留</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">自动备份时机</label>
+              <select class="form-control">
+                <option>每次退出前自动提示</option>
+                <option>每日定时（17:30）</option>
+                <option>手动</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">备份存储位置</label>
+            <input class="form-control" value="C:\研学派团备份" readonly>
+            <div class="form-hint">与 Excel 导出目录分开，需单独设置访问权限</div>
+          </div>
+          <div class="flex gap-8 mt-16">
+            <button class="btn btn-primary" onclick="manualBackup()">💾 立即备份</button>
+            <button class="btn btn-outline" onclick="testRestore()">🔍 测试恢复演练</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>📋 备份恢复流程</h3></div>
+        <div class="card-body">
+          <ol style="padding-left:20px;font-size:13px;color:var(--text-muted);line-height:2">
+            <li>选择目标备份文件，点击"恢复"</li>
+            <li>系统自动校验备份文件完整性（.json + 结构校验）</li>
+            <li>显示备份时间点和数据范围，确认是否继续</li>
+            <li>执行覆盖恢复，自动备份当前状态</li>
+            <li>恢复完成后自动进入主界面，显示恢复结果</li>
+          </ol>
+          <div class="alert alert-warning mt-16" style="margin-bottom:0">
+            ⚠️ 恢复操作将覆盖当前所有数据，且不可撤销。已设置 D06 公司保留要求优先。
+          </div>
+        </div>
+      </div>
+    `;
+  },
+};
+
+/* =============================================
+   交互函数
+   ============================================= */
+
+function selectProject(id) {
+  currentProject = mockData.projects.find(p => p.id === id) || currentProject;
+  renderPage();
+}
+
+function saveProject() {
+  const school = document.getElementById('f-school').value;
+  const grade = document.getElementById('f-grade').value;
+  if (!school || !grade) {
+    document.getElementById('saveMsg').innerHTML = '<div class="alert alert-danger">请填写必填字段</div>';
+    return;
+  }
+  document.getElementById('saveMsg').innerHTML = '<div class="alert alert-success">✅ 项目草稿已保存！</div>';
+}
+
+function filterProjects(keyword) {
+  const list = document.getElementById('projectList');
+  if (!list) return;
+  const cards = list.querySelectorAll('.project-card');
+  cards.forEach(card => {
+    card.style.display = card.textContent.includes(keyword) ? '' : 'none';
+  });
+}
+
+function filterByStatus(status) {
+  const list = document.getElementById('projectList');
+  if (!list) return;
+  const cards = list.querySelectorAll('.project-card');
+  cards.forEach(card => {
+    card.style.display = !status || card.textContent.includes(PROJECT_STATUS[status]?.label || '') ? '' : 'none';
+  });
+}
+
+function filterGuides(keyword) {
+  // guide filtering - simple text match on table
+  const rows = document.querySelectorAll('tbody tr');
+  rows.forEach(row => {
+    row.style.display = !keyword || row.textContent.includes(keyword) ? '' : 'none';
+  });
+}
+
+function switchTab(btn, tabId) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('[id^="tab-"]').forEach(t => t.classList.add('hidden'));
+  const el = document.getElementById(tabId);
+  if (el) el.classList.remove('hidden');
+}
+
+function generateNotice() {
+  const p = currentProject;
+  const start = document.getElementById('n-start')?.value || p.startDate;
+  const count = document.getElementById('n-count')?.value || p.needGuides;
+  const showSchool = document.getElementById('n-showSchool')?.checked;
+  const showGrade = document.getElementById('n-showGrade')?.checked;
+  const school = showSchool ? p.school : '某学校';
+  const grade = showGrade ? p.grade : '某年级';
+
+  const notice = `【研学导游招募】\n\n${school} ${grade}研学团招募${count}名导游。\n出团日期：${start}\n目的地：${p.dest}\n集合地点：${p.gather || '待定'} · ${p.gatherTime || '待定'}\n\n招募要求：\n1. 持有有效期内的导游证\n2. 近30天内无临近出团退团记录\n3. 合作状态正常\n\n请按接龙格式报名：序号 · 姓名 · 手机号\n报名截止：${start}前3天`;
+
+  document.getElementById('noticeResult').innerHTML = `
+    <div class="card">
+      <div class="card-body">
+        <pre style="font-family:monospace;font-size:13px;white-space:pre-wrap">${notice}</pre>
+        <button class="btn btn-outline btn-sm mt-16" onclick="copyText(this)" data-text="${notice.replace(/"/g, '&quot;')}">📋 复制通知文本</button>
+      </div>
+    </div>
+  `;
+}
+
+function processSignup() {
+  const text = document.getElementById('signupText').value;
+  if (!text.trim()) return;
+
+  const lines = text.trim().split('\n');
+  let html = '<div class="card"><div class="card-body"><div class="table-wrap"><table><thead><tr><th>#</th><th>识别姓名</th><th>手机号</th><th>匹配结果</th><th>导游证状态</th><th>操作</th></tr></thead><tbody>';
+
+  lines.forEach((line, i) => {
+    const match = line.match(/(?:\d+[.、]\s*)?([^\s\d][^\n]*?)[\s\n]+(\d{3}[\*\*]+\d{4})/);
+    const gName = line.match(/([^\d\s][^\n]*?)(?=\s+\d)/)?.[1] || line.match(/[^\d]+/)?.[0].trim() || '';
+    const found = mockData.guides.find(g => line.includes(g.name));
+
+    if (found) {
+      html += `<tr>
+        <td>${i+1}</td>
+        <td>${found.name}</td>
+        <td>${found.phone}</td>
+        <td><span class="tag tag-primary">✅ 已匹配：${found.name}</span></td>
+        <td><span class="tag tag-${found.certStatus === 'valid' ? 'primary' : 'danger'}">${found.certStatus === 'valid' ? '有效' : '异常'}</span></td>
+        <td><button class="btn btn-primary btn-sm" onclick="assignGuide('${found.id}')">安排到班级</button></td>
+      </tr>`;
+    } else {
+      html += `<tr>
+        <td>${i+1}</td>
+        <td>${gName || '—'}</td>
+        <td>—</td>
+        <td><span class="tag tag-warning">⚠️ 未找到匹配导游</span></td>
+        <td>—</td>
+        <td><button class="btn btn-outline btn-sm">人工确认</button></td>
+      </tr>`;
+    }
+  });
+
+  html += '</tbody></table></div></div></div>';
+  document.getElementById('signupResult').innerHTML = html;
+}
+
+function assignGuide(guideId) {
+  const p = currentProject;
+  const cls = p.classes.find(c => !p.assignedGuides.some(g => g.classId === c.id));
+  if (!cls) { alert('所有班级已分配导游！'); return; }
+  const gg = mockData.guides.find(g => g.id === guideId);
+  if (!gg) return;
+  p.assignedGuides.push({ guideId, name: gg.name, classId: cls.id, status: 'assigned' });
+  renderPage();
+  alert(`${gg.name} 已安排至 ${cls.name}`);
+}
+
+function removeGuide(guideId) {
+  const p = currentProject;
+  const idx = p.assignedGuides.findIndex(g => g.guideId === guideId);
+  if (idx > -1) {
+    const name = p.assignedGuides[idx].name;
+    p.assignedGuides.splice(idx, 1);
+    renderPage();
+    alert(`${name} 已移出安排`);
+  }
+}
+
+function resolveException(excId) {
+  alert('确认例外原因（此处模拟）');
+}
+
+function fixException(excId) {
+  alert('跳转修复异常（此处模拟）');
+}
+
+function downloadBackup(id) { alert('下载备份文件（此处模拟）'); }
+function verifyBackup(id) { alert('校验备份文件（此处模拟）'); }
+function restoreBackup(id) { alert('恢复备份（此处模拟，确认覆盖）'); }
+function manualBackup() { alert('正在创建备份...（此处模拟）'); }
+function testRestore() { alert('测试恢复演练...（此处模拟）'); }
+
+function copyText(btn) {
+  const text = btn.getAttribute('data-text') || btn.previousElementSibling?.textContent || '';
+  navigator.clipboard?.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '✅ 已复制！';
+    setTimeout(() => btn.textContent = orig, 2000);
+  });
+}
+
+function exportFile(type) {
+  const p = currentProject;
+  const s = calcProjectStats(p);
+  const filename = `${p.school}_${p.grade}_${type}_${p.startDate}.xlsx`;
+  alert(`模拟导出：${filename}\n\n（Demo 版本不生成真实 Excel 文件）\n\n导出前将执行完整性检查，检查通过后记录操作日志。`);
+}
+
+function viewFullCert(guideId) {
+  alert('查看完整证件信息\n\n⚠️ 此操作将产生操作记录，日志不保存完整证件值。\n（Demo 版本显示占位内容）');
+}
+
+/* =============================================
+   模态框系统
+   ============================================= */
+
+function openModal(type, param) {
+  const root = document.getElementById('modalRoot');
+  let html = '';
+
+  const closeBtn = '<button class="modal-close" onclick="closeModal()">&times;</button>';
+
+  if (type === 'addClass') {
+    html = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <div class="modal-header"><h3>➕ 添加班级</h3>${closeBtn}</div>
+        <div class="modal-body">
+          <div class="form-group"><label class="form-label">班级名称 <span class="req">*</span></label><input class="form-control" id="mc-name" placeholder="如：初二801班"></div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">学生总数 <span class="req">*</span></label><input type="number" class="form-control" id="mc-total" min="1"></div>
+            <div class="form-group"><label class="form-label">男生人数 <span class="req">*</span></label><input type="number" class="form-control" id="mc-male" min="0"></div>
+            <div class="form-group"><label class="form-label">女生人数 <span class="req">*</span></label><input type="number" class="form-control" id="mc-female" min="0"></div>
+          </div>
+          <div class="form-group"><label class="form-label">班主任姓名</label><input class="form-control" id="mc-teacher" placeholder="班主任姓名"></div>
+          <div class="form-group"><label class="form-label">班主任电话</label><input class="form-control" id="mc-teacher-phone" placeholder="手机号（脱敏显示）"></div>
+          <div class="form-group"><label class="form-label">需分配导游</label><input type="number" class="form-control" id="mc-needGuide" value="1" min="1"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeModal()">取消</button>
+          <button class="btn btn-primary" onclick="doAddClass()">💾 添加班级</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  else if (type === 'editClass') {
+    const cls = currentProject.classes.find(c => c.id === param);
+    if (!cls) return;
+    html = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <div class="modal-header"><h3>✏️ 编辑班级：${cls.name}</h3>${closeBtn}</div>
+        <div class="modal-body">
+          <div class="form-group"><label class="form-label">班级名称</label><input class="form-control" id="mc-name" value="${cls.name}"></div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">学生总数</label><input type="number" class="form-control" id="mc-total" value="${cls.students}"></div>
+            <div class="form-group"><label class="form-label">男生人数</label><input type="number" class="form-control" id="mc-male" value="${cls.male}"></div>
+            <div class="form-group"><label class="form-label">女生人数</label><input type="number" class="form-control" id="mc-female" value="${cls.female}"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">班主任</label><input class="form-control" id="mc-teacher" value="${cls.teachers[0]?.name || ''}"></div>
+            <div class="form-group"><label class="form-label">班主任电话</label><input class="form-control" id="mc-teacher-phone" value="${cls.teachers[0]?.phone || ''}"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeModal()">取消</button>
+          <button class="btn btn-primary" onclick="doSaveClass('${cls.id}')">💾 保存</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  else if (type === 'addCar') {
+    html = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <div class="modal-header"><h3>➕ 添加车辆</h3>${closeBtn}</div>
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">车牌号 <span class="req">*</span></label><input class="form-control" id="mc-carno" placeholder="如：湘A12345"></div>
+            <div class="form-group"><label class="form-label">车型</label><input class="form-control" id="mc-carmodel" placeholder="如：49座大巴"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">座位数</label><input type="number" class="form-control" id="mc-seats" value="49" min="1"></div>
+            <div class="form-group"><label class="form-label">分配班级</label>
+              <select class="form-control" id="mc-classid">
+                ${currentProject.classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">司机姓名</label><input class="form-control" id="mc-drivername" placeholder="司机姓名"></div>
+            <div class="form-group"><label class="form-label">司机电话</label><input class="form-control" id="mc-driverphone" placeholder="手机号"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeModal()">取消</button>
+          <button class="btn btn-primary" onclick="doAddCar()">💾 添加</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  else if (type === 'guideDetail') {
+    const g = mockData.guides.find(x => x.id === param) || mockData.guides[0];
+    html = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <div class="modal-header"><h3>👤 导游详情：${g.name}</h3>${closeBtn}</div>
+        <div class="modal-body">
+          <div class="detail-grid mb-16">
+            <div class="detail-item"><div class="label">姓名</div><div class="value font-bold">${g.name}</div></div>
+            <div class="detail-item"><div class="label">性别</div><div class="value">${g.gender}</div></div>
+            <div class="detail-item"><div class="label">电话</div><div class="value">${g.phone}</div></div>
+            <div class="detail-item"><div class="label">合作状态</div><div class="value"><span class="tag tag-${g.status === 'active' ? 'primary' : 'gray'}">${g.status === 'active' ? '合作中' : '停用'}</span></div></div>
+            <div class="detail-item"><div class="label">导游证号</div><div class="value">${g.certNo}</div></div>
+            <div class="detail-item"><div class="label">证件有效期</div><div class="value">${g.certExpiry}</div></div>
+            <div class="detail-item"><div class="label">带团次数</div><div class="value">${g.tours}次</div></div>
+            <div class="detail-item"><div class="label">好评率</div><div class="value">⭐ ${g.rating}</div></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeModal()">关闭</button>
+          <button class="btn btn-primary" onclick="assignGuide('${g.id}');closeModal()">分配到班级</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  else if (type === 'addSchool') {
+    html = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <div class="modal-header"><h3>➕ 新增学校</h3>${closeBtn}</div>
+        <div class="modal-body">
+          <div class="form-group"><label class="form-label">学校名称 <span class="req">*</span></label><input class="form-control" id="ms-name" placeholder="学校全称"></div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">常用联系人</label><input class="form-control" id="ms-contact"></div>
+            <div class="form-group"><label class="form-label">联系电话</label><input class="form-control" id="ms-phone"></div>
+          </div>
+          <div class="form-group"><label class="form-label">合作备注</label><textarea class="form-control" id="ms-note"></textarea></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeModal()">取消</button>
+          <button class="btn btn-primary" onclick="doAddSchool()">💾 保存</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  else if (type === 'addGuide') {
+    html = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <div class="modal-header"><h3>➕ 新增导游</h3>${closeBtn}</div>
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">姓名 <span class="req">*</span></label><input class="form-control" id="mg-name"></div>
+            <div class="form-group"><label class="form-label">性别</label>
+              <select class="form-control" id="mg-gender"><option>男</option><option>女</option></select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">电话</label><input class="form-control" id="mg-phone"></div>
+            <div class="form-group"><label class="form-label">导游证号</label><input class="form-control" id="mg-certno"></div>
+          </div>
+          <div class="form-group"><label class="form-label">证件有效期</label><input type="date" class="form-control" id="mg-cert-expiry"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeModal()">取消</button>
+          <button class="btn btn-primary" onclick="doAddGuide()">💾 保存</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  root.innerHTML = html;
+}
+
+function closeModal() {
+  document.getElementById('modalRoot').innerHTML = '';
+}
+
+function doAddClass() {
+  const name = document.getElementById('mc-name').value;
+  const total = parseInt(document.getElementById('mc-total').value) || 0;
+  const male = parseInt(document.getElementById('mc-male').value) || 0;
+  const female = parseInt(document.getElementById('mc-female').value) || 0;
+  const teacher = document.getElementById('mc-teacher').value;
+  const phone = document.getElementById('mc-teacher-phone').value;
+  const needGuide = parseInt(document.getElementById('mc-needGuide')?.value) || 1;
+
+  if (!name || !total) { alert('请填写必填字段'); return; }
+  if (male + female !== total) {
+    if (!confirm(`男${male} + 女${female} = ${male+female}，不等于总人数${total}，是否继续？`)) return;
+  }
+
+  const newClass = {
+    id: 'C' + (currentProject.classes.length + 1 + Date.now() % 1000),
+    name, students: total, male, female,
+    teachers: teacher ? [{ name: teacher, phone, gender: '待定', ride: true, lodging: currentProject.needLodging, meal: currentProject.needMeal }] : [],
+    needGuide
+  };
+  currentProject.classes.push(newClass);
+  currentProject.needGuides += needGuide;
+  closeModal();
+  renderPage();
+}
+
+function doSaveClass(clsId) {
+  const cls = currentProject.classes.find(c => c.id === clsId);
+  if (!cls) return;
+  cls.name = document.getElementById('mc-name').value;
+  cls.students = parseInt(document.getElementById('mc-total').value) || 0;
+  cls.male = parseInt(document.getElementById('mc-male').value) || 0;
+  cls.female = parseInt(document.getElementById('mc-female').value) || 0;
+  if (cls.teachers[0]) cls.teachers[0].name = document.getElementById('mc-teacher').value;
+  closeModal();
+  renderPage();
+}
+
+function doAddCar() {
+  const carNo = document.getElementById('mc-carno').value;
+  if (!carNo) { alert('请填写车牌号'); return; }
+  const newDriver = {
+    id: 'D' + (currentProject.drivers.length + 1),
+    name: document.getElementById('mc-drivername').value || '待定司机',
+    phone: document.getElementById('mc-driverphone').value || '****',
+    gender: '男',
+    carNo,
+    carModel: document.getElementById('mc-carmodel').value || '大巴',
+    seats: parseInt(document.getElementById('mc-seats').value) || 49,
+    classId: document.getElementById('mc-classid').value,
+    ride: true, lodging: currentProject.needLodging, meal: currentProject.needMeal,
+  };
+  currentProject.drivers.push(newDriver);
+  closeModal();
+  renderPage();
+}
+
+function doAddSchool() {
+  const name = document.getElementById('ms-name').value;
+  if (!name) { alert('请填写学校名称'); return; }
+  const newSchool = {
+    id: 'S' + (mockData.schools.length + 1 + Date.now() % 100).toString().padStart(3, '0'),
+    name,
+    contact: document.getElementById('ms-contact').value,
+    phone: document.getElementById('ms-phone').value,
+    note: document.getElementById('ms-note').value,
+    status: 'active'
+  };
+  mockData.schools.push(newSchool);
+  closeModal();
+  renderPage();
+}
+
+function doAddGuide() {
+  const name = document.getElementById('mg-name').value;
+  if (!name) { alert('请填写姓名'); return; }
+  const newGuide = {
+    id: 'G' + (mockData.guides.length + 1 + Date.now() % 100).toString().padStart(3, '0'),
+    name,
+    phone: document.getElementById('mg-phone').value || '****',
+    gender: document.getElementById('mg-gender').value,
+    certNo: document.getElementById('mg-certno').value || '待补',
+    certExpiry: document.getElementById('mg-cert-expiry').value || '',
+    status: 'active',
+    certStatus: 'valid',
+    tours: 0,
+    rating: 0
+  };
+  mockData.guides.push(newGuide);
+  closeModal();
+  renderPage();
+}
+
+function useSchool(schoolId) {
+  navigate('P03');
+}
+
+function showImportOptions() {
+  const type = document.getElementById('importType')?.value;
+  const excel = document.getElementById('excelUploadSection');
+  const text = document.getElementById('textImportSection');
+  if (excel) excel.classList.toggle('hidden', type !== 'class' && type !== 'transport' && type !== 'lodging' && type !== 'meal' && type !== 'school' && type !== 'guide');
+  if (text) text.classList.toggle('hidden', type !== 'signup');
+}
+
+function parseFile() {
+  document.getElementById('parseResult').innerHTML = '<div class="alert alert-info">📋 模拟解析完成，共3条记录。请在下一步确认映射。</div>';
+}
+
+function parseText() {
+  document.getElementById('parseResult').innerHTML = '<div class="alert alert-info">📋 模拟解析完成，请确认匹配结果。</div>';
+}
+
+function confirmImport() {
+  alert('✅ 数据已成功写入正式数据！（Demo 模拟）');
+}
+
+/* =============================================
+   初始化
+   ============================================= */
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderSidebar();
+  renderHeader();
+  renderPage();
+});
+</script>
+</body>
+</html>

@@ -1,27 +1,65 @@
 {
-  "runId": "uiux-preview-2026-09-05",
+  "runId": "uiux-penpot-full-set-2026-09-12",
   "fileKey": "CJjOMO9CCnSim9oemtajPb",
   "fileUrl": "https://www.figma.com/design/CJjOMO9CCnSim9oemtajPb",
-  "phase": "blocked",
-  "step": "figma-mcp-rate-limit",
+  "scopeVersion": "manager-desktop-v1-approved-2026-09-09",
+  "phase": "penpot-production",
+  "step": "uiux-p01-p20-complete",
   "entities": {
-    "pages": {},
-    "screens": {}
+    "pages": {
+      "count": 20,
+      "range": "P01-P20"
+    },
+    "screens": {
+      "canvas": "1440x1024",
+      "names": [
+        "P01 今日工作台",
+        "P02 研学项目列表",
+        "P03 新建与编辑项目",
+        "P04 项目执行总览",
+        "P05 班级与人员汇总",
+        "P06 招募通知与接龙导入",
+        "P07 导游安排",
+        "P08 乘车安排",
+        "P09 住宿安排",
+        "P10 用餐安排",
+        "P11 资料导入",
+        "P12 字段映射与导入预览",
+        "P13 学校库",
+        "P14 导游库",
+        "P15 导游详情",
+        "P16 表格中心",
+        "P17 预览与导出",
+        "P18 异常中心",
+        "P19 操作与导入导出记录",
+        "P20 数据备份与恢复"
+      ],
+      "previewDir": "uiux-previews/2026-09-12-full-set"
+    }
   },
-  "pendingValidations": [
-    "dashboard:screenshot",
-    "project-dispatch:screenshot",
-    "guide-mobile:screenshot",
-    "font:noto-sans-sc"
-  ],
+  "pendingValidations": [],
   "completedSteps": [
     "discovery",
-    "scope-lock"
+    "scope-lock",
+    "penpot-foundations",
+    "p01-p20-screen-design",
+    "screen-export",
+    "visual-qa",
+    "structure-qa"
   ],
   "blocker": {
     "message": "You've reached the Figma MCP tool call limit on the Starter plan.",
     "occurredAtStep": "create-color-foundations",
     "canvasWritesCompleted": false,
-    "resolution": "Wait for quota reset or upgrade the Figma plan, then retry the same foundations step."
+    "resolution": "Figma remains historical reference only; current UI/UX production moved to Penpot and P01-P20 are complete.",
+    "status": "resolved-by-penpot"
+  },
+  "penpot": {
+    "fileName": "工作台",
+    "fileId": "c828d3cf-7d4e-8145-8008-9c3664a7ffcf",
+    "pageId": "c828d3cf-7d4e-8145-8008-9c3664a7ffd0",
+    "status": "complete-p01-p20",
+    "completedAt": "2026-09-12",
+    "previewDir": "uiux-previews/2026-09-12-full-set"
   }
 }
