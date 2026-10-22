@@ -8,8 +8,9 @@ import { migration004 } from './migrations/004-guide-library.mjs';
 import { migration005 } from './migrations/005-recruitment-batches.mjs';
 import { migration006 } from './migrations/006-transport-planning.mjs';
 import { migration007 } from './migrations/007-meal-participation-overrides.mjs';
+import { migration008 } from './migrations/008-arrangement-adjustments.mjs';
 
-export const migrations = [migration001, migration002, migration003, migration004, migration005, migration006, migration007];
+export const migrations = [migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008];
 
 export function openDatabase(filename) {
   if (filename !== ':memory:') mkdirSync(dirname(filename), { recursive: true });

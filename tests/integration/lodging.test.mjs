@@ -70,3 +70,21 @@ test('P09 定位容量不足、重复房号、来源变化和不适用项目', (
   assert.equal(fixture.business.suggestLodging(day.id, { rooms: roomDraft() }).error.code, 'LODGING_NOT_APPLICABLE');
   assert.equal(fixture.repository.counts(day.id).rooms, 0);
 });
+
+test('CR01 住宿局部调整保留未选房间并支持人工确认锁定', (context) => {
+  const fixture = setup(context); const suggestion = fixture.business.suggestLodging(fixture.project.id, { rooms: roomDraft() }).data;
+  let saved = fixture.business.saveLodging(fixture.project.id, suggestion.rooms).data; const selectedId = saved.lodging[0].id; const untouched = saved.lodging[1];
+  const adjusted = fixture.business.adjustArrangement(fixture.project.id, 'lodging', { selectedIds: [selectedId] });
+  assert.equal(adjusted.ok, true); assert.equal(adjusted.data.rooms.find((row) => row.id === selectedId).arrangementState, '调整中');
+  assert.equal(adjusted.data.rooms.find((row) => row.id === untouched.id).arrangementState, '自动安排');
+  saved = fixture.business.saveLodging(fixture.project.id, adjusted.data.rooms, { confirmedIds: [selectedId] }).data;
+  const confirmed = saved.lodging.find((row) => row.id === selectedId); assert.equal(confirmed.arrangement_state, '人工确认');
+  assert.equal(fixture.business.adjustArrangement(fixture.project.id, 'lodging', { selectedIds: [selectedId] }).error.code, 'ARRANGEMENT_LOCKED');
+  const rerun = fixture.business.suggestLodging(fixture.project.id, { rooms: saved.lodging });
+  assert.equal(rerun.ok, true); assert.equal(rerun.data.rooms.find((row) => row.id === selectedId).arrangementState, '人工确认');
+  const unlocked = fixture.business.unlockArrangement(fixture.project.id, 'lodging', selectedId); assert.equal(unlocked.ok, true);
+  const unlockedRoom = unlocked.data.lodging.find((row) => row.id === selectedId); assert.equal(unlockedRoom.arrangement_state, '调整中');
+  assert.deepEqual(unlockedRoom.allocations, confirmed.allocations, '解锁不得立即改写原分房');
+  assert.ok(unlocked.data.exceptions.some((row) => row.code === 'ARRANGEMENT_IN_PROGRESS' && row.source_id === selectedId && row.status === '待处理'));
+  assert.equal(fixture.business.adjustArrangement(fixture.project.id, 'lodging', { selectedIds: [selectedId] }).ok, true);
+});

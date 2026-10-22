@@ -6,6 +6,29 @@ const requiredText = (value) => String(value || '').trim();
 const projectStatuses = new Set(['资料待补充','人员安排中','车辆安排中','住宿安排中','用餐安排中','待检查','已完成安排','已出团','已结束']);
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const phonePattern = /^[0-9+()\-\s]{6,24}$/;
+const arrangementStates = new Set(['自动安排','调整中','人工确认','待重新确认']);
+const normalizeArrangementState = (value) => arrangementStates.has(value) ? value : '自动安排';
+const arrangementSummaryWithState = (summary, state) => {
+  const normalized = normalizeArrangementState(state);
+  const parts = requiredText(summary).split('；').filter((part) => part && !arrangementStates.has(part));
+  return [...parts, normalized].join('；');
+};
+function normalizeSpecialRequirements(value) {
+  if (!value) return '';
+  if (typeof value === 'string') {
+    const text = value.trim();
+    if (!text) return '';
+    try { return JSON.stringify(JSON.parse(text)); } catch { return JSON.stringify({ type: '说明', value: text }); }
+  }
+  return JSON.stringify(value);
+}
+function parseSpecialRequirements(value) {
+  if (!value) return [];
+  try {
+    const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+    return Array.isArray(parsed) ? parsed : [parsed];
+  } catch { return []; }
+}
 const issue = (projectId, module, code, sourceType, sourceId, message) => ({
   module, severity: '阻断', code, sourceType, sourceId, message,
   fingerprint: `${projectId}:${module}:${code}:${sourceType}:${sourceId}`
@@ -117,7 +140,14 @@ function splitStudents(count, boys, girls) {
   return { boys: proposedBoys + Math.min(short, boys - proposedBoys), girls: proposedGirls + Math.max(0, short - (boys - proposedBoys)) };
 }
 
-export function buildTransportSuggestion({ classes = [], guides = [], vehicles = [] } = {}) {
+function isPrimaryGrade(value) {
+  const text = String(value || '');
+  const match = text.match(/([1-9]|一|二|三|四|五|六)年级/);
+  if (!match) return false;
+  return ['1','2','3','4','5','6','一','二','三','四','五','六'].includes(match[1]);
+}
+
+export function buildTransportSuggestion({ classes = [], guides = [], vehicles = [], grade = '' } = {}) {
   const prepared = vehicles.map((vehicle, index) => ({ ...vehicle, allocations: [], _index: index,
     _remaining: Math.max(0, Number(vehicle.capacity || 0) - Number(vehicle.safetyReserve || 0)) }));
   const guidesByClass = new Map();
@@ -128,7 +158,7 @@ export function buildTransportSuggestion({ classes = [], guides = [], vehicles =
       guidesByClass.set(assignment.classId, rows);
     }
   }
-  const usedGuides = new Set(); const unassigned = []; const splitClasses = [];
+  const usedGuides = new Set(); const unassigned = []; const splitClasses = []; const safetyBlockers = [];
 
   function addClassPart(vehicle, classRow, studentCount, boys, girls, teachers, classGuides) {
     if (studentCount > 0) vehicle.allocations.push({ classId: classRow.id, role: '学生', peopleCount: studentCount, boysCount: boys, girlsCount: girls });
@@ -137,14 +167,14 @@ export function buildTransportSuggestion({ classes = [], guides = [], vehicles =
     vehicle._remaining -= studentCount + teachers + classGuides.length;
   }
 
-  for (const classRow of classes) {
+  for (const [classIndex, classRow] of classes.entries()) {
     const classGuides = (guidesByClass.get(classRow.id) || []).filter((guide) => !usedGuides.has(guide.id));
     const teachers = Number(classRow.teachers_on_vehicle ?? classRow.teachersOnVehicle ?? 0);
     const students = Number(classRow.student_total ?? classRow.studentTotal ?? 0);
     const boys = Number(classRow.boys || 0); const girls = Number(classRow.girls || 0);
     const required = students + teachers + classGuides.length;
     const fullFit = prepared.filter((vehicle) => vehicle._remaining >= required)
-      .sort((left, right) => (left._remaining - required) - (right._remaining - required) || left._index - right._index)[0];
+      .sort((left, right) => Math.abs(left._index - classIndex) - Math.abs(right._index - classIndex) || (left._remaining - required) - (right._remaining - required) || left._index - right._index)[0];
     if (fullFit) {
       addClassPart(fullFit, classRow, students, boys, girls, teachers, classGuides);
       classGuides.forEach((guide) => usedGuides.add(guide.id));
@@ -155,7 +185,7 @@ export function buildTransportSuggestion({ classes = [], guides = [], vehicles =
       unassigned.push({ classId: classRow.id, className: classRow.name, peopleCount: required, missingSeats: required - totalRemaining });
       continue;
     }
-    const candidates = prepared.filter((vehicle) => vehicle._remaining > 0).sort((left, right) => right._remaining - left._remaining || left._index - right._index);
+    const candidates = prepared.filter((vehicle) => vehicle._remaining > 0).sort((left, right) => Math.abs(left._index - classIndex) - Math.abs(right._index - classIndex) || right._remaining - left._remaining || left._index - right._index);
     const first = candidates.find((vehicle) => vehicle._remaining >= teachers + classGuides.length);
     if (!first) {
       unassigned.push({ classId: classRow.id, className: classRow.name, peopleCount: required, missingSeats: required });
@@ -176,10 +206,35 @@ export function buildTransportSuggestion({ classes = [], guides = [], vehicles =
     if (parts > 1) splitClasses.push({ classId: classRow.id, className: classRow.name, vehicles: parts });
   }
 
-  const resultVehicles = prepared.map(({ _index, _remaining, ...vehicle }) => vehicle);
+  if (isPrimaryGrade(grade)) for (const split of splitClasses) {
+    const studentVehicles = prepared.filter((vehicle) => vehicle.allocations.some((row) => row.classId === split.classId && row.role === '学生'));
+    const responsible = [];
+    for (const vehicle of prepared) for (let index = vehicle.allocations.length - 1; index >= 0; index -= 1) {
+      const row = vehicle.allocations[index];
+      if (row.classId !== split.classId || !['老师','导游'].includes(row.role)) continue;
+      vehicle.allocations.splice(index, 1); vehicle._remaining += row.peopleCount;
+      if (row.role === '导游') responsible.push({ ...row });
+      else for (let count = 0; count < row.peopleCount; count += 1) responsible.push({ ...row, peopleCount: 1 });
+    }
+    if (responsible.length < studentVehicles.length) safetyBlockers.push({ classId: split.classId, className: split.className,
+      vehicleLabels: studentVehicles.map((vehicle) => vehicle.vehicleLabel), missingResponsible: studentVehicles.length - responsible.length });
+    responsible.forEach((row, index) => {
+      const vehicle = studentVehicles[Math.min(index, studentVehicles.length - 1)];
+      vehicle.allocations.push(row); vehicle._remaining -= 1;
+    });
+  }
+
+  const splitIds = new Set(splitClasses.map((row) => row.classId));
+  const resultVehicles = prepared.map(({ _index, _remaining, ...vehicle }) => {
+    const classIds = [...new Set(vehicle.allocations.filter((row) => row.classId).map((row) => row.classId))];
+    const empty = Number(vehicle.capacity || 0) - Number(vehicle.safetyReserve || 0) - vehicle.allocations.reduce((sum, row) => sum + row.peopleCount, 0);
+    const state = normalizeArrangementState(vehicle.arrangementState ?? vehicle.arrangement_state);
+    const parts = [classIds.length > 1 ? '合班' : '', classIds.some((id) => splitIds.has(id)) ? '拆班' : '', `空位 ${empty}`, state].filter(Boolean);
+    return { ...vehicle, arrangementState: state, arrangementSummary: parts.join('；') };
+  });
   const assigned = resultVehicles.reduce((sum, vehicle) => sum + vehicle.allocations.reduce((n, row) => n + row.peopleCount, 0), 0);
   const capacity = resultVehicles.reduce((sum, vehicle) => sum + Number(vehicle.capacity || 0) - Number(vehicle.safetyReserve || 0), 0);
-  return { vehicles: resultVehicles, unassigned, splitClasses, totals: { capacity, assigned, emptySeats: capacity - assigned, missingSeats: unassigned.reduce((sum, item) => sum + item.missingSeats, 0) } };
+  return { vehicles: resultVehicles, unassigned, splitClasses, safetyBlockers, totals: { capacity, assigned, emptySeats: capacity - assigned, missingSeats: unassigned.reduce((sum, item) => sum + item.missingSeats, 0) } };
 }
 
 function floorOrder(value) {
@@ -208,8 +263,8 @@ export function lodgingSourceRows({ classes = [], staff = [] } = {}) {
   return rows;
 }
 
-export function buildLodgingSuggestion({ classes = [], staff = [], rooms = [] } = {}) {
-  const sources = lodgingSourceRows({ classes, staff });
+export function buildLodgingSuggestion({ classes = [], staff = [], rooms = [], sources: suppliedSources = null } = {}) {
+  const sources = suppliedSources || lodgingSourceRows({ classes, staff });
   const prepared = rooms.map((room, index) => ({ ...room, allocations: [], _index: index, _remaining: Number(room.capacity || 0), _roomGender: '' }));
   const dates = [...new Set(prepared.map((room) => room.checkInOn).filter(Boolean))].sort();
   const unassigned = []; const crossClassRooms = [];
@@ -237,7 +292,11 @@ export function buildLodgingSuggestion({ classes = [], staff = [], rooms = [] } 
       crossClassRooms.push({ checkInOn: room.checkInOn, roomNumber: room.roomNumber, classIds, parts: studentRows.map((row) => ({ classId: row.classId, peopleCount: row.peopleCount })), reason });
     }
   }
-  const resultRooms = prepared.map(({ _index, _remaining, _roomGender, ...room }) => room);
+  const resultRooms = prepared.map(({ _index, _remaining, _roomGender, ...room }) => {
+    const classIds = new Set(room.allocations.filter((row) => row.role === '学生' && row.classId).map((row) => row.classId));
+    const state = normalizeArrangementState(room.arrangementState ?? room.arrangement_state);
+    return { ...room, arrangementState: state, arrangementSummary: `${classIds.size > 1 ? '跨班；' : ''}空床 ${_remaining}；${state}` };
+  });
   const capacity = resultRooms.reduce((sum, room) => sum + Number(room.capacity || 0), 0); const assigned = resultRooms.reduce((sum, room) => sum + room.allocations.reduce((total, row) => total + row.peopleCount, 0), 0);
   const expectedPerNight = sources.reduce((sum, row) => sum + row.peopleCount, 0); const expected = expectedPerNight * dates.length;
   return { rooms: resultRooms, sources, dates, crossClassRooms, unassigned, totals: { rooms: resultRooms.length, nights: dates.length, capacity, expected, assigned, emptyBeds: capacity - assigned, missingPeople: unassigned.reduce((sum, row) => sum + row.peopleCount, 0), expectedPerNight } };
@@ -256,32 +315,144 @@ export function mealSourceRows({ classes = [], staff = [], overrides = [] } = {}
 export function buildMealSuggestion({ classes = [], staff = [], sessions = [], includeStaff = false } = {}) {
   const suggestedSessions = sessions.map((session, sessionIndex) => {
     const sources = mealSourceRows({ classes, staff, overrides: session.overrides || [] });
-    const baseSources = sources.filter((row) => row.role === '学生' || row.role === '导游');
-    const staffSources = sources.filter((row) => row.role !== '学生' && row.role !== '导游');
-    const seats = Number(session.seatsPerTable || 10); const basePeople = baseSources.reduce((sum, row) => sum + row.peopleCount, 0);
+    const studentSources = sources.filter((row) => row.role === '学生' && row.peopleCount > 0);
+    const guideSources = sources.filter((row) => row.role === '导游' && row.peopleCount > 0);
+    const staffSources = sources.filter((row) => row.role !== '学生' && row.role !== '导游' && row.peopleCount > 0);
+    const seats = Number(session.seatsPerTable || 10); const basePeople = [...studentSources, ...guideSources].reduce((sum, row) => sum + row.peopleCount, 0);
     const staffPeople = staffSources.reduce((sum, row) => sum + row.peopleCount, 0); const totalPeople = basePeople + staffPeople;
-    const baseSuggestedTables = Math.ceil(basePeople / seats); const finalRequiredTables = Math.ceil(totalPeople / seats);
     const prefix = requiredText(session.tablePrefix) || String.fromCharCode(65 + sessionIndex);
-    const tableCount = includeStaff ? finalRequiredTables : baseSuggestedTables;
-    const tables = Array.from({ length: tableCount }, (_, index) => ({ tableNumber: `${prefix}${String(index + 1).padStart(2, '0')}`, notes: '', allocations: [] }));
-    let tableIndex = 0;
-    for (const source of includeStaff ? sources : baseSources) {
+    const tableNumber = (index) => `${prefix}${String(index + 1).padStart(2, '0')}`;
+    const tables = []; const tails = [];
+    const makeTable = (allocations = []) => {
+      const table = { tableNumber: tableNumber(tables.length), notes: '', arrangementState: '自动安排', specialRequirements: '', allocations };
+      tables.push(table); return table;
+    };
+    for (const source of studentSources) {
+      const full = Math.floor(source.peopleCount / seats); const tail = source.peopleCount % seats;
+      for (let index = 0; index < full; index += 1) makeTable([{ classId: source.classId, role: '学生', peopleCount: seats, sharedTableReason: '' }]);
+      if (tail) tails.push({ source, peopleCount: tail });
+    }
+    while (tails.length) {
+      let best = null;
+      for (let left = 0; left < tails.length; left += 1) for (let right = left + 1; right < tails.length; right += 1) {
+        const sum = tails[left].peopleCount + tails[right].peopleCount;
+        if (sum > seats) continue;
+        const priority = sum === seats ? 4 : sum === seats - 1 ? 3 : sum === seats - 2 ? 2 : 1;
+        const score = priority * 1000 + sum * 10 - Math.abs(left - right);
+        if (!best || score > best.score) best = { left, right, score };
+      }
+      if (!best) {
+        const tail = tails.shift(); makeTable([{ classId: tail.source.classId, role: '学生', peopleCount: tail.peopleCount, sharedTableReason: '' }]);
+        continue;
+      }
+      const right = tails.splice(best.right, 1)[0]; const left = tails.splice(best.left, 1)[0];
+      const reason = '班级尾数组整体拼桌，未拆分尾数组且每桌最多两个班';
+      makeTable([{ classId: left.source.classId, role: '学生', peopleCount: left.peopleCount, sharedTableReason: reason },
+        { classId: right.source.classId, role: '学生', peopleCount: right.peopleCount, sharedTableReason: reason }]);
+    }
+    const requirements = parseSpecialRequirements(session.specialRequirements ?? session.special_requirements);
+    const specialRequirementBlockers = [];
+    const used = (table) => table.allocations.reduce((sum, row) => sum + row.peopleCount, 0);
+    const ensureTable = (number) => {
+      const match = String(number || '').match(/(\d+)$/); const target = match ? Number(match[1]) : 0;
+      while (target > tables.length) makeTable();
+      return tables.find((table) => table.tableNumber === number) || null;
+    };
+    const requirementTableNumbers = (requirement) => {
+      if (!requirement) return [];
+      if (['fixed_table','固定桌号'].includes(requirement.type)) return [requiredText(requirement.tableNumber || requirement.value)].filter(Boolean);
+      if (!['fixed_table_range','固定桌号范围'].includes(requirement.type)) return [];
+      const values = Array.isArray(requirement.tableNumbers || requirement.value) ? (requirement.tableNumbers || requirement.value).map(requiredText).filter(Boolean) : [];
+      if (values.length) return values;
+      const rangeText = requiredText(requirement.value); const match = rangeText.match(/^([^\d]*)(\d+)\s*[-—至]\s*([^\d]*)(\d+)$/);
+      const startText = requiredText(requirement.from || requirement.start); const endText = requiredText(requirement.to || requirement.end);
+      const startMatch = (match ? `${match[1]}${match[2]}` : startText).match(/^([^\d]*)(\d+)$/); const endMatch = (match ? `${match[3] || match[1]}${match[4]}` : endText).match(/^([^\d]*)(\d+)$/);
+      if (!startMatch || !endMatch || startMatch[1] !== endMatch[1] || Number(endMatch[2]) < Number(startMatch[2])) return [];
+      const width = Math.max(startMatch[2].length, endMatch[2].length); return Array.from({ length: Number(endMatch[2]) - Number(startMatch[2]) + 1 }, (_, index) => `${startMatch[1]}${String(Number(startMatch[2]) + index).padStart(width, '0')}`);
+    };
+    const placeFlexible = (source, fixedNumbers = []) => {
+      let remaining = source.peopleCount; const fixed = fixedNumbers.map(ensureTable).filter(Boolean);
+      if (fixedNumbers.length && (fixed.length !== fixedNumbers.length || fixed.reduce((sum, table) => sum + seats - used(table), 0) < remaining)) {
+        const requirement = fixedNumbers.join('—');
+        specialRequirementBlockers.push({ sourceType: source.sourceType, sourceId: source.sourceId, role: source.role, peopleCount: remaining, requirement, message: `固定桌号范围 ${requirement} 容量不足` });
+        return remaining;
+      }
+      while (remaining > 0) {
+        const table = (fixed.length ? fixed : tables).find((candidate) => used(candidate) < seats) || (!fixed.length ? makeTable() : null);
+        if (!table) break;
+        const count = Math.min(remaining, seats - used(table));
+        table.allocations.push({ role: source.role, peopleCount: count, sharedTableReason: '' }); remaining -= count;
+      }
+      return remaining;
+    };
+    for (const source of guideSources) {
+      const requirement = requirements.find((row) => (row.sourceId === source.sourceId || row.role === '导游') && ['fixed_table','固定桌号','fixed_table_range','固定桌号范围'].includes(row.type));
+      placeFlexible(source, requirementTableNumbers(requirement));
+    }
+    const baseSuggestedTables = tables.length;
+    const simulate = structuredClone(tables);
+    const targetTables = includeStaff ? tables : simulate;
+    const targetUsed = (table) => table.allocations.reduce((sum, row) => sum + row.peopleCount, 0);
+    for (const source of staffSources) {
       let remaining = source.peopleCount;
-      while (remaining > 0 && tableIndex < tables.length) {
-        const table = tables[tableIndex]; const used = table.allocations.reduce((sum, row) => sum + row.peopleCount, 0); const count = Math.min(remaining, seats - used);
-        if (count > 0) table.allocations.push({ classId: source.classId || undefined, role: source.role, peopleCount: count, sharedTableReason: '' });
-        remaining -= count; if (used + count >= seats) tableIndex += 1;
+      while (remaining > 0) {
+        let table = targetTables.find((candidate) => targetUsed(candidate) < seats);
+        if (!table) { table = { tableNumber: tableNumber(targetTables.length), notes: '', arrangementState: '自动安排', specialRequirements: '', allocations: [] }; targetTables.push(table); }
+        const count = Math.min(remaining, seats - targetUsed(table)); table.allocations.push({ role: source.role, peopleCount: count, sharedTableReason: '' }); remaining -= count;
       }
     }
+    const finalRequiredTables = targetTables.length;
     for (const table of tables) {
-      const studentRows = table.allocations.filter((row) => row.role === '学生' && row.classId); const classIds = new Set(studentRows.map((row) => row.classId));
-      if (classIds.size > 1) studentRows.forEach((row) => { row.sharedTableReason = '相邻班级拼桌，保持班级顺序并补足本桌'; });
+      const state = normalizeArrangementState(table.arrangementState ?? table.arrangement_state);
+      table.arrangementSummary = `${new Set(table.allocations.filter((row) => row.role === '学生').map((row) => row.classId)).size > 1 ? '拼桌；' : ''}空位 ${seats - used(table)}；${state}`;
     }
-    const allocated = tables.reduce((sum, table) => sum + table.allocations.reduce((n, row) => n + row.peopleCount, 0), 0);
-    return { ...session, tables, sources, suggestion: { basePeople, staffPeople, totalPeople, baseSuggestedTables, staffAdditionalTables: Math.max(0, finalRequiredTables - baseSuggestedTables), finalRequiredTables, allocated, unassigned: totalPeople - allocated } };
+    const allocated = tables.reduce((sum, table) => sum + used(table), 0);
+    const unresolved = specialRequirementBlockers.reduce((sum, row) => sum + (row.peopleCount || 0), 0);
+    return { ...session, tables, sources, specialRequirementBlockers, suggestion: { basePeople, staffPeople, totalPeople, baseSuggestedTables,
+      staffAdditionalTables: Math.max(0, finalRequiredTables - baseSuggestedTables), finalRequiredTables, allocated, unassigned: Math.max(unresolved, totalPeople - allocated) } };
   });
   return { sessions: suggestedSessions, totals: { sessions: suggestedSessions.length, baseSuggestedTables: suggestedSessions.reduce((sum, row) => sum + row.suggestion.baseSuggestedTables, 0), finalRequiredTables: suggestedSessions.reduce((sum, row) => sum + row.suggestion.finalRequiredTables, 0), allocated: suggestedSessions.reduce((sum, row) => sum + row.suggestion.allocated, 0), unassigned: suggestedSessions.reduce((sum, row) => sum + row.suggestion.unassigned, 0) } };
 }
+
+function remainingTransportSources(classes, guides, fixedVehicles) {
+  const rows = fixedVehicles.flatMap((vehicle) => vehicle.allocations || []);
+  const remainingClasses = classes.map((item) => {
+    const own = rows.filter((row) => (row.classId ?? row.class_id) === item.id);
+    const students = own.filter((row) => row.role === '学生'); const teachers = own.filter((row) => row.role === '老师');
+    return { ...item,
+      student_total: Math.max(0, Number(item.student_total || 0) - students.reduce((sum, row) => sum + Number(row.peopleCount ?? row.people_count ?? 0), 0)),
+      boys: Math.max(0, Number(item.boys || 0) - students.reduce((sum, row) => sum + Number(row.boysCount ?? row.boys_count ?? 0), 0)),
+      girls: Math.max(0, Number(item.girls || 0) - students.reduce((sum, row) => sum + Number(row.girlsCount ?? row.girls_count ?? 0), 0)),
+      teachers_on_vehicle: Math.max(0, Number(item.teachers_on_vehicle || 0) - teachers.reduce((sum, row) => sum + Number(row.peopleCount ?? row.people_count ?? 0), 0)) };
+  }).filter((item) => item.student_total || item.teachers_on_vehicle);
+  const fixedGuideIds = new Set(rows.filter((row) => row.role === '导游').map((row) => row.projectGuideId ?? row.project_guide_id).filter(Boolean));
+  return { classes: remainingClasses, guides: guides.filter((row) => !fixedGuideIds.has(row.id)) };
+}
+
+function remainingLodgingSources(sources, fixedRooms, date) {
+  const allocations = fixedRooms.filter((room) => (room.checkInOn ?? room.check_in_on) === date).flatMap((room) => room.allocations || []);
+  return sources.map((source) => {
+    const allocated = allocations.filter((row) => row.role === source.role && row.gender === source.gender && (source.role !== '学生' || (row.classId ?? row.class_id) === source.classId))
+      .reduce((sum, row) => sum + Number(row.peopleCount ?? row.people_count ?? 0), 0);
+    return { ...source, peopleCount: Math.max(0, source.peopleCount - allocated) };
+  }).filter((source) => source.peopleCount > 0);
+}
+
+function remainingMealInputs(classes, staff, fixedTables) {
+  const allocations = fixedTables.flatMap((table) => table.allocations || []);
+  const remainingClasses = classes.map((item) => ({ ...item, student_total: Math.max(0, Number(item.student_total || 0) - allocations
+    .filter((row) => row.role === '学生' && (row.classId ?? row.class_id) === item.id).reduce((sum, row) => sum + Number(row.peopleCount ?? row.people_count ?? 0), 0)) }));
+  const consumedByRole = new Map();
+  for (const row of allocations.filter((item) => item.role !== '学生')) consumedByRole.set(row.role, (consumedByRole.get(row.role) || 0) + Number(row.peopleCount ?? row.people_count ?? 0));
+  const remainingStaff = staff.map((item) => {
+    const available = Number(item.default_meal_count || 0); const consumed = Math.min(available, consumedByRole.get(item.role) || 0);
+    consumedByRole.set(item.role, Math.max(0, (consumedByRole.get(item.role) || 0) - consumed));
+    return { ...item, default_meal_count: available - consumed };
+  });
+  return { classes: remainingClasses, staff: remainingStaff };
+}
+
+function arrangementId(row) { return requiredText(row?.id); }
 
 function caught(error) {
   return failure(error.code || 'DATABASE_WRITE_FAILED', error.publicMessage || error.message || '数据库写入失败');
@@ -396,12 +567,14 @@ export function createBusinessService({ db, repository, schoolRepository, audit,
           if (guideIds.has(projectGuideId)) fieldError(`${allocationPrefix}.projectGuideId`, '同一导游只能计入一辆车', 'TRANSPORT_GUIDE_DUPLICATE');
           if (projectGuideId) guideIds.add(projectGuideId);
         } else if (projectGuideId) fieldError(`${allocationPrefix}.projectGuideId`, '只有导游分配可以关联项目导游', 'TRANSPORT_GUIDE_ROLE_INVALID');
-        return { classId, role, peopleCount, boysCount, girlsCount, projectGuideId, notes: requiredText(row.notes) };
+        return { id: requiredText(row.id) || undefined, classId, role, peopleCount, boysCount, girlsCount, projectGuideId, notes: requiredText(row.notes) };
       });
       return { id, vehicleLabel, fleetName: requiredText(item.fleetName ?? item.fleet_name), vehicleModel: requiredText(item.vehicleModel ?? item.vehicle_model), plateNumber,
         capacity, safetyReserve, driverName: requiredText(item.driverName ?? item.driver_name), driverPhone, driverGender, driverNeedsLodging,
         driverJoinsDefaultMeals: project.includes_meals ? Boolean(item.driverJoinsDefaultMeals ?? item.driver_joins_default_meals) : false,
-        notes: requiredText(item.notes), allocations };
+        notes: requiredText(item.notes), arrangementState: normalizeArrangementState(item.arrangementState ?? item.arrangement_state),
+        specialRequirements: normalizeSpecialRequirements(item.specialRequirements ?? item.special_requirements),
+        arrangementSummary: requiredText(item.arrangementSummary ?? item.arrangement_summary), allocations };
     });
     return { value: vehicles, errors };
   }
@@ -433,7 +606,10 @@ export function createBusinessService({ db, repository, schoolRepository, audit,
         if (role !== '学生' && classId) fieldError(`${allocationPrefix}.classId`, '工作人员住宿按角色和性别汇总，不关联班级', 'LODGING_STAFF_CLASS_INVALID');
         return { id: requiredText(row.id) || undefined, classId, role, gender, peopleCount, crossClassReason: requiredText(row.crossClassReason ?? row.cross_class_reason) };
       });
-      return { id, lodgingName, checkInOn, building, floorLabel, roomNumber, roomType, capacity, genderRule, notes: requiredText(item.notes), allocations };
+      return { id, lodgingName, lodgingAddress: requiredText(item.lodgingAddress ?? item.lodging_address), checkInOn, building, floorLabel, roomNumber, roomType, capacity, genderRule,
+        notes: requiredText(item.notes), arrangementState: normalizeArrangementState(item.arrangementState ?? item.arrangement_state),
+        specialRequirements: normalizeSpecialRequirements(item.specialRequirements ?? item.special_requirements),
+        arrangementSummary: requiredText(item.arrangementSummary ?? item.arrangement_summary), allocations };
     });
     return { value: rooms, errors };
   }
@@ -479,10 +655,13 @@ export function createBusinessService({ db, repository, schoolRepository, audit,
         });
         const studentRows = allocations.filter((row) => row.role === '学生');
         if (new Set(studentRows.map((row) => row.classId)).size > 1 && studentRows.some((row) => !row.sharedTableReason)) fieldError(`${tableField}.allocations`, `${tableNumber || '餐桌'}存在跨班拼桌，必须填写说明`, 'SHARED_MEAL_REASON_REQUIRED');
-        return { id: tableId, tableNumber, notes: requiredText(table.notes), allocations };
+        return { id: tableId, tableNumber, notes: requiredText(table.notes), arrangementState: normalizeArrangementState(table.arrangementState ?? table.arrangement_state),
+          specialRequirements: normalizeSpecialRequirements(table.specialRequirements ?? table.special_requirements),
+          arrangementSummary: requiredText(table.arrangementSummary ?? table.arrangement_summary), allocations };
       });
       if (!allowEmptyTables && !tables.length) fieldError(`${prefix}.tables`, `${name || `第 ${sessionIndex + 1} 餐`}至少需要一张餐桌`, 'MEAL_TABLES_REQUIRED');
-      return { id, name, restaurantName, mealAt, seatsPerTable, tablePrefix, notes: requiredText(item.notes), overrides, tables };
+      return { id, name, restaurantName, mealAt, seatsPerTable, tablePrefix, notes: requiredText(item.notes),
+        specialRequirements: normalizeSpecialRequirements(item.specialRequirements ?? item.special_requirements), overrides, tables };
     });
     return { value: sessions, errors };
   }
@@ -547,6 +726,7 @@ export function createBusinessService({ db, repository, schoolRepository, audit,
         if (!value.needsLodging && hasLodging) repository.replaceLodging(id, [], clock());
         if (!value.includesMeals && hasMeals) repository.replaceMeals(id, [], clock());
         repository.updateProject(id, value, clock());
+        if (previous.grade !== value.grade || previous.starts_on !== value.startsOn || previous.ends_on !== value.endsOn || Boolean(previous.needs_lodging) !== value.needsLodging || Boolean(previous.includes_meals) !== value.includesMeals) repository.markConfirmedArrangementsStale(id);
         repository.touchProject(id, clock());
         calculate(id);
         log(id, '项目', id, '更新项目资料与条件模块');
@@ -611,7 +791,7 @@ export function createBusinessService({ db, repository, schoolRepository, audit,
     try {
       const data = runInTransaction(db, () => {
         repository.replacePeople(projectId, checked.value.classes, checked.value.manualStaff, clock());
-        repository.touchProject(projectId, clock()); calculate(projectId); log(projectId, '班级与人员', projectId, `保存 ${checked.value.classes.length} 个班级`);
+        repository.markConfirmedArrangementsStale(projectId); repository.touchProject(projectId, clock()); calculate(projectId); log(projectId, '班级与人员', projectId, `保存 ${checked.value.classes.length} 个班级；受影响的人工确认安排已转为待重新确认`);
         return summary(projectId);
       });
       return success(data);
@@ -734,7 +914,7 @@ export function createBusinessService({ db, repository, schoolRepository, audit,
       repository.assignGuide(projectGuideId, classIds, requiredText(input.dualClassReason), {
         needsLodging: project.needs_lodging ? input.needsLodging : false,
         joinsDefaultMeals: project.includes_meals ? input.joinsDefaultMeals : false
-      }, clock()); repository.touchProject(pg.project_id, clock()); calculate(pg.project_id);
+      }, clock()); repository.markConfirmedArrangementsStale(pg.project_id); repository.touchProject(pg.project_id, clock()); calculate(pg.project_id);
       log(pg.project_id, '导游安排', projectGuideId, `安排 ${classIds.length} 个班级`); return summary(pg.project_id);
     })); } catch (error) { return caught(error); }
   }
@@ -748,7 +928,7 @@ export function createBusinessService({ db, repository, schoolRepository, audit,
     if (status === '保留' && (!pg.guide_id || pg.match_status !== '已匹配')) return failure('GUIDE_NOT_CONFIRMED', '未完成档案匹配的接龙行不能保留为正式人选');
     if (status === '移出' && repository.assignmentRows(projectGuideId).length) return failure('GUIDE_ASSIGNED_CANNOT_REMOVE', '已分班导游不能直接移出，请使用记录退团');
     try { return success(runInTransaction(db, () => {
-      repository.setGuideHandling(projectGuideId, status, clock()); repository.touchProject(pg.project_id, clock()); calculate(pg.project_id);
+      repository.setGuideHandling(projectGuideId, status, clock()); repository.markConfirmedArrangementsStale(pg.project_id); repository.touchProject(pg.project_id, clock()); calculate(pg.project_id);
       log(pg.project_id, '导游名单', projectGuideId, `名单状态改为“${status}”`); return summary(pg.project_id);
     })); } catch (error) { return caught(error); }
   }
@@ -762,7 +942,7 @@ export function createBusinessService({ db, repository, schoolRepository, audit,
     if (input.replacementProjectGuideId && (!replacement || replacement.project_id !== pg.project_id || replacement.id === pg.id)) return failure('REPLACEMENT_NOT_IN_PROJECT', '替换人选必须来自当前项目的其他接龙记录');
     try { return success(runInTransaction(db, () => {
       repository.withdrawGuide(projectGuideId, requiredText(input.reason), input.replacementProjectGuideId || null, clock());
-      repository.touchProject(pg.project_id, clock()); calculate(pg.project_id);
+      repository.markConfirmedArrangementsStale(pg.project_id); repository.touchProject(pg.project_id, clock()); calculate(pg.project_id);
       log(pg.project_id, '导游退团', projectGuideId, '记录退团、释放班级并重新计算缺口'); return summary(pg.project_id);
     })); } catch (error) { return caught(error); }
   }
@@ -790,9 +970,24 @@ export function createBusinessService({ db, repository, schoolRepository, audit,
       repository.assignGuide(replacementId, assignments.map((item) => item.classId), original.dual_class_reason, {
         needsLodging: Boolean(original.needs_lodging), joinsDefaultMeals: Boolean(original.joins_default_meals)
       }, clock());
-      repository.touchProject(original.project_id, clock()); calculate(original.project_id);
+      repository.markConfirmedArrangementsStale(original.project_id); repository.touchProject(original.project_id, clock()); calculate(original.project_id);
       log(original.project_id, '导游替换', projectGuideId, `替换关系已建立，班级分配转移到 ${replacementId}`); return summary(original.project_id);
     })); } catch (error) { return caught(error); }
+  }
+
+  function planTransportRows(projectId, project, sourceVehicles, selectedIds = null) {
+    const checked = validateTransportInput(projectId, project, sourceVehicles);
+    if (checked.errors.length) return failure(checked.errors[0].code, '车辆资料未通过校验，暂不能生成建议', { fields: checked.errors });
+    const ids = selectedIds ? new Set(selectedIds) : null;
+    const fixed = checked.value.filter((vehicle) => ids ? !ids.has(vehicle.id) : vehicle.arrangementState === '人工确认');
+    const adjustable = checked.value.filter((vehicle) => ids ? ids.has(vehicle.id) : vehicle.arrangementState !== '人工确认')
+      .map((vehicle) => ({ ...vehicle, allocations: [], arrangementState: ids ? '调整中' : '自动安排' }));
+    if (ids && adjustable.length !== ids.size) return failure('ARRANGEMENT_SELECTION_INVALID', '所选车辆不存在或不属于当前项目');
+    const remaining = remainingTransportSources(repository.classes(projectId), repository.guideAssignments(projectId), fixed);
+    const suggestion = buildTransportSuggestion({ ...remaining, vehicles: adjustable, grade: project.grade });
+    const proposed = new Map(suggestion.vehicles.filter((vehicle) => vehicle.id).map((vehicle) => [vehicle.id, vehicle]));
+    const vehicles = !ids && fixed.length === 0 ? suggestion.vehicles : checked.value.map((vehicle) => proposed.get(vehicle.id) || vehicle);
+    return success({ ...suggestion, vehicles, lockedRows: fixed.map((row) => row.id), selectedIds: ids ? [...ids] : [] });
   }
 
   function suggestTransport(projectId, input = {}) {
@@ -800,24 +995,49 @@ export function createBusinessService({ db, repository, schoolRepository, audit,
     if (!project) return failure('NOT_FOUND', '项目不存在');
     const sourceVehicles = Array.isArray(input.vehicles) ? input.vehicles : [];
     if (!sourceVehicles.length) return failure('VEHICLES_REQUIRED', '请先新增或导入车辆，再生成安排建议');
-    const checked = validateTransportInput(projectId, project, sourceVehicles.map((vehicle) => ({ ...vehicle, allocations: [] })));
-    if (checked.errors.length) return failure(checked.errors[0].code, '车辆资料未通过校验，暂不能生成建议', { fields: checked.errors });
+    const planned = planTransportRows(projectId, project, sourceVehicles);
+    if (!planned.ok) return planned;
     const current = repository.transport(projectId);
-    const suggestion = buildTransportSuggestion({ classes: repository.classes(projectId), guides: repository.guideAssignments(projectId), vehicles: checked.value });
+    const suggestion = planned.data;
     return success({ ...suggestion, replacesExisting: current.some((vehicle) => vehicle.allocations.length), impact: {
       currentVehicles: current.length, currentAllocationRows: current.reduce((sum, vehicle) => sum + vehicle.allocations.length, 0), proposedAllocationRows: suggestion.vehicles.reduce((sum, vehicle) => sum + vehicle.allocations.length, 0)
     } });
   }
 
-  function saveTransport(projectId, vehicles = []) {
+  function saveTransport(projectId, vehicles = [], { confirmedIds = [] } = {}) {
     const project = getProject(projectId);
     if (!project) return failure('NOT_FOUND', '项目不存在');
     const checked = validateTransportInput(projectId, project, vehicles);
     if (checked.errors.length) return failure(checked.errors[0].code, '乘车安排未通过校验', { fields: checked.errors });
+    const confirmations = new Set(confirmedIds);
+    const value = checked.value.map((row) => confirmations.has(row.id) ? { ...row, arrangementState: '人工确认', arrangementSummary: arrangementSummaryWithState(row.arrangementSummary, '人工确认') } : row);
     try { return success(runInTransaction(db, () => {
-      repository.replaceTransport(projectId, checked.value, clock()); repository.touchProject(projectId, clock()); calculate(projectId);
-      log(projectId, '乘车安排', projectId, `保存 ${checked.value.length} 辆项目车辆并重新校验容量`); return summary(projectId);
+      repository.replaceTransport(projectId, value, clock()); repository.markConfirmedArrangementsStale(projectId, ['lodging','meals']); repository.touchProject(projectId, clock()); calculate(projectId);
+      log(projectId, confirmations.size ? '人工确认' : '乘车安排', projectId, confirmations.size ? `确认 ${confirmations.size} 辆车的局部调整` : `保存 ${value.length} 辆项目车辆并重新校验容量`); return summary(projectId);
     })); } catch (error) { return caught(error); }
+  }
+
+  function planLodgingRows(projectId, project, sourceRooms, selectedIds = null) {
+    const checked = validateLodgingInput(projectId, project, sourceRooms);
+    if (checked.errors.length) return failure(checked.errors[0].code, '房间资料未通过校验，暂不能生成建议', { fields: checked.errors });
+    const ids = selectedIds ? new Set(selectedIds) : null;
+    const fixed = checked.value.filter((room) => ids ? !ids.has(room.id) : room.arrangementState === '人工确认');
+    const adjustable = checked.value.filter((room) => ids ? ids.has(room.id) : room.arrangementState !== '人工确认')
+      .map((room) => ({ ...room, allocations: [], arrangementState: ids ? '调整中' : '自动安排' }));
+    if (ids && adjustable.length !== ids.size) return failure('ARRANGEMENT_SELECTION_INVALID', '所选房间不存在或不属于当前项目');
+    const baseSources = lodgingSourceRows({ classes: repository.classes(projectId), staff: repository.staffSources(projectId) });
+    const suggestedRooms = []; const unassigned = []; const crossClassRooms = [];
+    for (const date of [...new Set(adjustable.map((room) => room.checkInOn))].sort()) {
+      const rooms = adjustable.filter((room) => room.checkInOn === date);
+      const planned = buildLodgingSuggestion({ rooms, sources: remainingLodgingSources(baseSources, fixed, date) });
+      suggestedRooms.push(...planned.rooms); unassigned.push(...planned.unassigned); crossClassRooms.push(...planned.crossClassRooms);
+    }
+    const proposed = new Map(suggestedRooms.filter((room) => room.id).map((room) => [room.id, room]));
+    const rooms = !ids && fixed.length === 0 ? suggestedRooms : checked.value.map((room) => proposed.get(room.id) || room);
+    const capacity = rooms.reduce((sum, room) => sum + room.capacity, 0); const assigned = rooms.reduce((sum, room) => sum + room.allocations.reduce((n, row) => n + row.peopleCount, 0), 0);
+    return success({ rooms, unassigned, crossClassRooms, lockedRows: fixed.map((row) => row.id), selectedIds: ids ? [...ids] : [],
+      totals: { rooms: rooms.length, nights: new Set(rooms.map((room) => room.checkInOn)).size, capacity, expected: baseSources.reduce((sum, row) => sum + row.peopleCount, 0) * new Set(rooms.map((room) => room.checkInOn)).size,
+        assigned, emptyBeds: capacity - assigned, missingPeople: unassigned.reduce((sum, row) => sum + row.peopleCount, 0), expectedPerNight: baseSources.reduce((sum, row) => sum + row.peopleCount, 0) } });
   }
 
   function suggestLodging(projectId, input = {}) {
@@ -833,21 +1053,51 @@ export function createBusinessService({ db, repository, schoolRepository, audit,
     const sources = lodgingSourceRows({ classes: repository.classes(projectId), staff: repository.staffSources(projectId) });
     const invalidSources = sources.filter((row) => row.peopleCount > 0 && !['男', '女'].includes(row.gender));
     if (invalidSources.length) return failure('LODGING_SOURCE_GENDER_MISSING', '住宿人员来源存在未填写性别，必须回到 P05、P07 或 P08 修正', { sources: invalidSources });
-    const current = repository.lodging(projectId); const suggestion = buildLodgingSuggestion({ classes: repository.classes(projectId), staff: repository.staffSources(projectId), rooms: checked.value });
+    const current = repository.lodging(projectId); const planned = planLodgingRows(projectId, project, sourceRooms); if (!planned.ok) return planned; const suggestion = planned.data;
     return success({ ...suggestion, replacesExisting: current.some((room) => room.allocations.length), impact: { currentRooms: current.length,
       currentAllocationRows: current.reduce((sum, room) => sum + room.allocations.length, 0), proposedAllocationRows: suggestion.rooms.reduce((sum, room) => sum + room.allocations.length, 0) } });
   }
 
-  function saveLodging(projectId, rooms = []) {
+  function saveLodging(projectId, rooms = [], { confirmedIds = [] } = {}) {
     const project = getProject(projectId);
     if (!project) return failure('NOT_FOUND', '项目不存在');
     if (!project.needs_lodging && rooms.length) return failure('LODGING_NOT_APPLICABLE', '该项目不需要住宿，不能创建住宿记录');
     const checked = validateLodgingInput(projectId, project, rooms);
     if (checked.errors.length) return failure(checked.errors[0].code, '住宿安排未通过字段校验', { fields: checked.errors });
+    const confirmations = new Set(confirmedIds); const value = checked.value.map((row) => confirmations.has(row.id) ? { ...row, arrangementState: '人工确认', arrangementSummary: arrangementSummaryWithState(row.arrangementSummary, '人工确认') } : row);
     try { return success(runInTransaction(db, () => {
-      repository.replaceLodging(projectId, checked.value, clock()); repository.touchProject(projectId, clock()); calculate(projectId);
-      log(projectId, '住宿安排', projectId, `保存 ${checked.value.length} 间房`); return summary(projectId);
+      repository.replaceLodging(projectId, value, clock()); repository.touchProject(projectId, clock()); calculate(projectId);
+      log(projectId, confirmations.size ? '人工确认' : '住宿安排', projectId, confirmations.size ? `确认 ${confirmations.size} 间房的局部调整` : `保存 ${value.length} 间房`); return summary(projectId);
     })); } catch (error) { return caught(error); }
+  }
+
+  function planMealRows(projectId, checkedSessions, includeStaff, selectedIds = null) {
+    const ids = selectedIds ? new Set(selectedIds) : null; const currentIds = new Set(checkedSessions.flatMap((session) => session.tables.map((table) => table.id).filter(Boolean)));
+    if (ids && [...ids].some((id) => !currentIds.has(id))) return failure('ARRANGEMENT_SELECTION_INVALID', '所选餐桌不存在或不属于当前项目');
+    const classes = repository.classes(projectId); const staff = repository.staffSources(projectId); const localBlockers = [];
+    const sessions = checkedSessions.map((session) => {
+      const fixed = session.tables.filter((table) => ids ? !ids.has(table.id) : table.arrangementState === '人工确认');
+      const templates = session.tables.filter((table) => ids ? ids.has(table.id) : table.arrangementState !== '人工确认');
+      if (ids && !templates.length) return session;
+      const remaining = remainingMealInputs(classes, staff, fixed);
+      const planned = buildMealSuggestion({ ...remaining, sessions: [{ ...session, tables: [] }], includeStaff }).sessions[0];
+      if (ids && planned.tables.length > templates.length) {
+        localBlockers.push({ sessionId: session.id, sessionName: session.name, code: 'LOCAL_MEAL_CAPACITY_SHORTAGE', message: `所选 ${templates.length} 桌不足以容纳局部重排，需要至少 ${planned.tables.length} 桌` });
+        return session;
+      }
+      const usedNumbers = new Set(fixed.map((table) => table.tableNumber)); let nextNumber = 1;
+      const generated = planned.tables.map((table, index) => {
+        const template = ids ? templates[index] : null;
+        let number = template?.tableNumber;
+        while (!number || usedNumbers.has(number)) { number = `${session.tablePrefix || String.fromCharCode(65)}${String(nextNumber).padStart(2, '0')}`; nextNumber += 1; }
+        usedNumbers.add(number);
+        const state = ids ? '调整中' : '自动安排';
+        return { ...table, id: template?.id, tableNumber: number, arrangementState: state, arrangementSummary: arrangementSummaryWithState(table.arrangementSummary, state) };
+      });
+      if (ids) for (let index = generated.length; index < templates.length; index += 1) generated.push({ ...templates[index], allocations: [], arrangementState: '调整中', arrangementSummary: `空位 ${session.seatsPerTable}；调整中` });
+      return { ...planned, id: session.id, tables: [...fixed, ...generated].sort((left, right) => left.tableNumber.localeCompare(right.tableNumber, 'zh-CN', { numeric: true })) };
+    });
+    return success({ sessions, localBlockers, selectedIds: ids ? [...ids] : [], includeStaff });
   }
 
   function suggestMeals(projectId, input = {}) {
@@ -857,20 +1107,71 @@ export function createBusinessService({ db, repository, schoolRepository, audit,
     const checked = validateMealInput(projectId, project, input.sessions || [], { allowEmptyTables: true });
     if (checked.errors.length) return failure(checked.errors[0].code, '餐次资料未通过校验，暂不能生成建议', { fields: checked.errors });
     if (checked.value.length !== project.meal_count) return failure('MEAL_SESSION_MISMATCH', `项目应建立 ${project.meal_count} 个餐次，当前 ${checked.value.length} 个`);
-    const suggestion = buildMealSuggestion({ classes: repository.classes(projectId), staff: repository.staffSources(projectId), sessions: checked.value, includeStaff: input.includeStaff === true });
+    const planned = planMealRows(projectId, checked.value, input.includeStaff === true);
+    if (!planned.ok) return planned;
+    const suggestion = { ...planned.data, totals: {
+      sessions: planned.data.sessions.length,
+      baseSuggestedTables: planned.data.sessions.reduce((sum, row) => sum + Number(row.suggestion?.baseSuggestedTables || 0), 0),
+      finalRequiredTables: planned.data.sessions.reduce((sum, row) => sum + Number(row.suggestion?.finalRequiredTables || row.tables.length), 0),
+      allocated: planned.data.sessions.reduce((sum, row) => sum + row.tables.flatMap((table) => table.allocations).reduce((n, allocation) => n + allocation.peopleCount, 0), 0),
+      unassigned: planned.data.sessions.reduce((sum, row) => sum + Number(row.suggestion?.unassigned || 0), 0) } };
     const current = repository.meals(projectId);
     return success({ ...suggestion, includeStaff: input.includeStaff === true, replacesExisting: current.some((session) => session.tables?.some((table) => table.allocations.length)), impact: { currentSessions: current.length, currentAllocationRows: current.reduce((sum, session) => sum + session.tables.reduce((n, table) => n + table.allocations.length, 0), 0), proposedAllocationRows: suggestion.sessions.reduce((sum, session) => sum + session.tables.reduce((n, table) => n + table.allocations.length, 0), 0) } });
   }
 
-  function saveMeals(projectId, sessions = []) {
+  function saveMeals(projectId, sessions = [], { confirmedIds = [] } = {}) {
     const project = getProject(projectId);
     if (!project) return failure('NOT_FOUND', '项目不存在');
     if (!project.includes_meals && sessions.length) return failure('MEALS_NOT_APPLICABLE', '该项目不含餐，不能创建用餐记录');
     const checked = validateMealInput(projectId, project, sessions);
     if (checked.errors.length) return failure(checked.errors[0].code, '用餐安排未通过字段校验', { fields: checked.errors });
+    const confirmations = new Set(confirmedIds); const value = checked.value.map((session) => ({ ...session, tables: session.tables.map((table) => confirmations.has(table.id) ? {
+      ...table, arrangementState: '人工确认', arrangementSummary: arrangementSummaryWithState(table.arrangementSummary, '人工确认')
+    } : table) }));
     try { return success(runInTransaction(db, () => {
-      repository.replaceMeals(projectId, checked.value, clock()); repository.touchProject(projectId, clock()); calculate(projectId);
-      log(projectId, '用餐安排', projectId, `保存 ${checked.value.length} 个餐次并重新校验就座人数`); return summary(projectId);
+      repository.replaceMeals(projectId, value, clock()); repository.touchProject(projectId, clock()); calculate(projectId);
+      log(projectId, confirmations.size ? '人工确认' : '用餐安排', projectId, confirmations.size ? `确认 ${confirmations.size} 张餐桌的局部调整` : `保存 ${value.length} 个餐次并重新校验就座人数`); return summary(projectId);
+    })); } catch (error) { return caught(error); }
+  }
+
+  function adjustArrangement(projectId, module, input = {}) {
+    const project = getProject(projectId); if (!project) return failure('NOT_FOUND', '项目不存在');
+    const selectedIds = [...new Set((input.selectedIds || []).map(requiredText).filter(Boolean))];
+    if (!selectedIds.length) return failure('ARRANGEMENT_SELECTION_REQUIRED', '请至少选择一行再调整');
+    const rows = module === 'transport' ? repository.transport(projectId)
+      : module === 'lodging' ? repository.lodging(projectId)
+        : module === 'meals' ? repository.mealTables(projectId) : null;
+    if (!rows) return failure('ARRANGEMENT_MODULE_INVALID', '局部调整模块无效');
+    if (selectedIds.some((id) => !rows.some((row) => row.id === id))) return failure('ARRANGEMENT_ROW_NOT_FOUND', '所选安排行不存在或不属于当前项目');
+    if (rows.some((row) => selectedIds.includes(row.id) && row.arrangement_state === '人工确认')) return failure('ARRANGEMENT_LOCKED', '人工确认行已锁定，请先在行首解锁');
+    let result;
+    if (module === 'transport') result = planTransportRows(projectId, project, repository.transport(projectId), selectedIds);
+    else if (module === 'lodging') result = planLodgingRows(projectId, project, repository.lodging(projectId), selectedIds);
+    else if (module === 'meals') {
+      const checked = validateMealInput(projectId, project, repository.meals(projectId));
+      result = checked.errors.length ? failure(checked.errors[0].code, '现有用餐安排未通过校验', { fields: checked.errors }) : planMealRows(projectId, checked.value, true, selectedIds);
+    } else return failure('ARRANGEMENT_MODULE_INVALID', '局部调整模块无效');
+    if (result.ok) log(projectId, '局部自动调整', projectId, `${module} 仅重排所选 ${selectedIds.length} 行；未选行保持不变`);
+    return result;
+  }
+
+  function unlockArrangement(projectId, module, rowId) {
+    const project = getProject(projectId); if (!project) return failure('NOT_FOUND', '项目不存在');
+    const id = requiredText(rowId); if (!id) return failure('ARRANGEMENT_ROW_REQUIRED', '缺少要解锁的安排行');
+    const rows = module === 'transport' ? repository.transport(projectId)
+      : module === 'lodging' ? repository.lodging(projectId)
+        : module === 'meals' ? repository.mealTables(projectId) : null;
+    if (!rows) return failure('ARRANGEMENT_MODULE_INVALID', '安排模块无效');
+    const row = rows.find((item) => item.id === id);
+    if (!row) return failure('ARRANGEMENT_ROW_NOT_FOUND', '安排行不存在或不属于当前项目');
+    if (row.arrangement_state !== '人工确认') return failure('ARRANGEMENT_NOT_LOCKED', '只有人工确认行可以解锁');
+    const labels = { transport: '乘车', lodging: '住宿', meals: '用餐' };
+    try { return success(runInTransaction(db, () => {
+      const changed = repository.unlockArrangement(projectId, module, id, arrangementSummaryWithState(row.arrangement_summary, '调整中'), clock());
+      if (!changed) throw Object.assign(new Error('安排行状态已变化，请刷新后重试'), { code: 'ARRANGEMENT_STATE_CHANGED' });
+      repository.touchProject(projectId, clock()); calculate(projectId);
+      log(projectId, '安排解锁', id, `${labels[module]}人工确认行已解锁为调整中；保留原分配，未触发自动重排`);
+      return summary(projectId);
     })); } catch (error) { return caught(error); }
   }
 
@@ -901,6 +1202,8 @@ export function createBusinessService({ db, repository, schoolRepository, audit,
     if (!vehicles.length) issues.push(issue(projectId, '乘车', 'VEHICLES_MISSING', 'project', projectId, '项目尚未建立排车表'));
     for (const row of vehicles) {
       if (row.allocated > row.capacity - row.safety_reserve) issues.push(issue(projectId, '乘车', 'VEHICLE_OVERLOAD', 'transport_row', row.id, `${row.vehicle_label} 超载 ${row.allocated - (row.capacity - row.safety_reserve)} 人`));
+      if (row.arrangement_state === '调整中') issues.push(issue(projectId, '乘车', 'ARRANGEMENT_IN_PROGRESS', 'transport_row', row.id, `${row.vehicle_label} 已解锁并处于调整中，必须重新人工确认`));
+      if (row.arrangement_state === '待重新确认') issues.push(issue(projectId, '乘车', 'ARRANGEMENT_RECONFIRM_REQUIRED', 'transport_row', row.id, `${row.vehicle_label} 的人工确认安排已受上游变化影响，必须重新确认`));
       const missingFields = [['fleet_name', '车队名称'], ['vehicle_model', '车辆型号'], ['plate_number', '车牌号'], ['driver_name', '司机姓名'], ['driver_phone', '司机电话']].filter(([key]) => !requiredText(row[key])).map(([, label]) => label);
       if (missingFields.length) issues.push(issue(projectId, '乘车', 'TRANSPORT_EXPORT_FIELDS_MISSING', 'transport_row', row.id, `${row.vehicle_label} 缺少导出必填字段：${missingFields.join('、')}`));
       if (project.needs_lodging && row.driver_needs_lodging && row.driver_gender === '未填写') issues.push(issue(projectId, '乘车', 'DRIVER_GENDER_REQUIRED', 'transport_row', row.id, `${row.vehicle_label} 的住宿司机必须填写性别`));
@@ -914,6 +1217,12 @@ export function createBusinessService({ db, repository, schoolRepository, audit,
       if (studentCount !== classRow.student_total) issues.push(issue(projectId, '乘车', 'TRANSPORT_CLASS_STUDENTS_MISMATCH', 'class', classRow.id, `${classRow.name} 学生应安排 ${classRow.student_total} 人，当前 ${studentCount} 人`));
       if (boysCount !== classRow.boys || girlsCount !== classRow.girls) issues.push(issue(projectId, '乘车', 'TRANSPORT_CLASS_GENDER_MISMATCH', 'class', classRow.id, `${classRow.name} 男女生应为 ${classRow.boys}/${classRow.girls}，当前 ${boysCount}/${girlsCount}`));
       if (teacherCount !== classRow.teachers_on_vehicle) issues.push(issue(projectId, '乘车', 'TRANSPORT_CLASS_TEACHERS_MISMATCH', 'class', classRow.id, `${classRow.name} 随车老师应为 ${classRow.teachers_on_vehicle} 人，当前 ${teacherCount} 人`));
+      if (isPrimaryGrade(project.grade)) {
+        const classVehicles = vehicles.filter((vehicle) => vehicle.allocations.some((row) => row.class_id === classRow.id && row.role === '学生'));
+        if (classVehicles.length > 1) for (const vehicle of classVehicles) if (!vehicle.allocations.some((row) => row.class_id === classRow.id && ['老师','导游'].includes(row.role))) {
+          issues.push(issue(projectId, '乘车', 'PRIMARY_SPLIT_RESPONSIBLE_MISSING', 'transport_row', vehicle.id, `${classRow.name} 为六年级及以下拆车，${vehicle.vehicle_label} 缺少随车老师或导游`));
+        }
+      }
     }
     const allocatedGuideIds = new Set(vehicles.flatMap((vehicle) => vehicle.allocations).filter((row) => row.role === '导游' && row.project_guide_id).map((row) => row.project_guide_id));
     if (allocatedGuideIds.size !== arrangedGuides) issues.push(issue(projectId, '乘车', 'TRANSPORT_GUIDES_MISMATCH', 'project', projectId, `已安排导游 ${arrangedGuides} 人，实际乘车 ${allocatedGuideIds.size} 人`));
@@ -943,6 +1252,8 @@ export function createBusinessService({ db, repository, schoolRepository, audit,
       }
       for (const row of lodgingRows) {
         if (row.allocated > row.capacity) issues.push(issue(projectId, '住宿', 'ROOM_OVERLOAD', 'lodging_row', row.id, `${row.room_number} 房超员`));
+        if (row.arrangement_state === '调整中') issues.push(issue(projectId, '住宿', 'ARRANGEMENT_IN_PROGRESS', 'lodging_row', row.id, `${row.room_number} 房已解锁并处于调整中，必须重新人工确认`));
+        if (row.arrangement_state === '待重新确认') issues.push(issue(projectId, '住宿', 'ARRANGEMENT_RECONFIRM_REQUIRED', 'lodging_row', row.id, `${row.room_number} 房的人工确认安排已受上游变化影响，必须重新确认`));
         if (row.genders > 1 || row.gender_mismatch > 0) issues.push(issue(projectId, '住宿', 'ROOM_GENDER_MISMATCH', 'lodging_row', row.id, `${row.room_number} 房存在性别规则冲突`));
         const missingFields = [['lodging_name', '酒店名称'], ['building', '楼栋'], ['floor_label', '楼层'], ['room_number', '房号']].filter(([key]) => !requiredText(row[key])).map(([, label]) => label);
         if (missingFields.length) issues.push(issue(projectId, '住宿', 'LODGING_EXPORT_FIELDS_MISSING', 'lodging_row', row.id, `${row.room_number || '未命名房间'} 缺少字段：${missingFields.join('、')}`));
@@ -968,7 +1279,11 @@ export function createBusinessService({ db, repository, schoolRepository, audit,
           if (roleActual !== roleExpected) issues.push(issue(projectId, '用餐', 'MEAL_ROLE_MISMATCH', 'meal_source', `${row.id}-${role}`, `${row.name}${role}应安排 ${roleExpected} 人，当前 ${roleActual} 人`));
         }
       }
-      for (const row of repository.mealTables(projectId)) if (row.allocated > row.seats_per_table) issues.push(issue(projectId, '用餐', 'MEAL_TABLE_OVERLOAD', 'meal_row', row.id, `${row.table_number} 桌超员`));
+      for (const row of repository.mealTables(projectId)) {
+        if (row.allocated > row.seats_per_table) issues.push(issue(projectId, '用餐', 'MEAL_TABLE_OVERLOAD', 'meal_row', row.id, `${row.table_number} 桌超员`));
+        if (row.arrangement_state === '调整中') issues.push(issue(projectId, '用餐', 'ARRANGEMENT_IN_PROGRESS', 'meal_row', row.id, `${row.table_number} 桌已解锁并处于调整中，必须重新人工确认`));
+        if (row.arrangement_state === '待重新确认') issues.push(issue(projectId, '用餐', 'ARRANGEMENT_RECONFIRM_REQUIRED', 'meal_row', row.id, `${row.table_number} 桌的人工确认安排已受上游变化影响，必须重新确认`));
+      }
     }
     repository.syncExceptions(projectId, issues, clock());
     return issues;
@@ -1096,10 +1411,12 @@ export function createBusinessService({ db, repository, schoolRepository, audit,
         grouped.set(row.className, item);
       }
       repository.replacePeople(projectId, [...grouped.values()], [], clock());
+      repository.markConfirmedArrangementsStale(projectId);
     } else if (targetType === 'guide_recruitment') {
       repository.createRecruitment(projectId, `导入批次 ${batchId}`, mapped.map((x) => ({ order: x.sequence, name: x.name, phone: x.phone || '' })), clock());
     } else if (targetType === 'transport') {
       repository.replaceTransport(projectId, mapped.map((x) => ({ vehicleLabel: x.vehicleLabel, fleetName: x.fleetName || '', vehicleModel: x.vehicleModel || '', plateNumber: x.plateNumber || '', capacity: x.capacity, driverName: x.driverName, driverPhone: x.driverPhone, driverGender: ['男', '女'].includes(x.driverGender) ? x.driverGender : '未填写', driverNeedsLodging: Boolean(x.driverNeedsLodging), driverJoinsDefaultMeals: Boolean(x.driverJoinsMeals), notes: x.notes || '', allocations: [] })), clock());
+      repository.markConfirmedArrangementsStale(projectId, ['lodging','meals']);
     } else if (targetType === 'lodging') {
       const project = getProject(projectId);
       if (!project.needs_lodging) throw Object.assign(new Error('该项目不需要住宿'), { code: 'LODGING_NOT_APPLICABLE' });
@@ -1119,5 +1436,5 @@ export function createBusinessService({ db, repository, schoolRepository, audit,
   }
 
   return Object.freeze({ createProject, updateProject, listProjects, endProject, removeProject, savePeople, createGuide, recruit, recruitmentContext, recruitmentNotice, previewRecruitment, confirmRecruitment,
-    assignGuide, setGuideHandling, withdrawGuide, replaceGuide, suggestTransport, saveTransport, suggestLodging, saveLodging, suggestMeals, saveMeals, recalculate, complete, listExceptions, confirmException, dashboard, overview, summary, importWriters });
+    assignGuide, setGuideHandling, withdrawGuide, replaceGuide, suggestTransport, saveTransport, suggestLodging, saveLodging, suggestMeals, saveMeals, adjustArrangement, unlockArrangement, recalculate, complete, listExceptions, confirmException, dashboard, overview, summary, importWriters });
 }

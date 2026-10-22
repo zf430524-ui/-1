@@ -14,8 +14,8 @@ test('全新数据库可迁移且重复迁移幂等', (context) => {
     db.close();
     rmSync(directory, { recursive: true, force: true });
   });
-  assert.equal(migrate(db).length, 7);
-  assert.equal(migrate(db).length, 7);
+  assert.equal(migrate(db).length, 8);
+  assert.equal(migrate(db).length, 8);
   const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map((row) => row.name);
   for (const name of ['schools','school_contacts','guides','guide_documents','projects','classes','teachers','project_guides','transport_sheet_rows','manual_project_staff','lodging_sheet_rows','meal_sessions','staff_meal_overrides','import_batches','export_records','exceptions','operation_logs']) assert.ok(tables.includes(name), `缺少 ${name}`);
 });

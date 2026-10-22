@@ -34,3 +34,24 @@ test('总座位不足时整班保留未安排并显示缺少座位', () => {
   assert.equal(result.totals.missingSeats, 1);
   assert.equal(result.vehicles.flatMap((vehicle) => vehicle.allocations).some((row) => row.classId === 'c803'), false);
 });
+
+test('CR01 相邻车辆优先承接溢出，六年级拆车为每辆车安排负责人', () => {
+  const primaryClasses = [
+    { id: 'c601', name: '601', student_total: 12, boys: 6, girls: 6, teachers_on_vehicle: 1 },
+    { id: 'c602', name: '602', student_total: 8, boys: 4, girls: 4, teachers_on_vehicle: 1 },
+    { id: 'c603', name: '603', student_total: 8, boys: 4, girls: 4, teachers_on_vehicle: 1 }
+  ];
+  const primaryGuides = primaryClasses.map((item, index) => ({ id: `primary-guide-${index}`, handling_status: '保留', assignment_count: 1, assignments: [{ classId: item.id }] }));
+  const result = buildTransportSuggestion({ classes: primaryClasses, guides: primaryGuides, vehicles: vehicles([11, 11, 12]), grade: '六年级' });
+  const carrying = result.vehicles.map((vehicle, index) => ({ index, rows: vehicle.allocations.filter((row) => row.classId === 'c601') })).filter((row) => row.rows.some((item) => item.role === '学生'));
+  assert.deepEqual(carrying.map((row) => row.index), [0, 1]);
+  assert.ok(carrying.every((row) => row.rows.some((item) => ['老师','导游'].includes(item.role))));
+  assert.equal(result.safetyBlockers.length, 0);
+});
+
+test('CR01 六年级拆车负责人不足时一次返回所有相关车辆', () => {
+  const result = buildTransportSuggestion({ classes: [{ id: 'c601', name: '601', student_total: 12, boys: 6, girls: 6, teachers_on_vehicle: 1 }], guides: [], vehicles: vehicles([11, 3]), grade: '六年级' });
+  assert.equal(result.safetyBlockers.length, 1);
+  assert.deepEqual(result.safetyBlockers[0].vehicleLabels, ['1车', '2车']);
+  assert.equal(result.safetyBlockers[0].missingResponsible, 1);
+});

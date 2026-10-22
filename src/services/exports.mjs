@@ -13,15 +13,15 @@ const definitions = {
   },
   transport: {
     label: '乘车安排表', recordLabel: '乘车表', source: 'transportDetails', module: '乘车',
-    columns: [['vehicleLabel','车号'],['className','班级'],['teachers','班主任 / 配班老师'],['teacherPhones','老师电话'],['guides','研学导游'],['guidePhones','导游电话'],['classStudents','班级学生'],['boys','男生'],['girls','女生'],['vehicleStudents','本车学生'],['teacherCount','随车老师'],['guideCount','导游人数'],['vehicleTotal','本车人数'],['usableSeats','可用座位'],['emptySeats','空车位'],['vehicleModel','车型'],['plateNumber','车牌号'],['driver','司机'],['driverPhone','司机电话'],['notes','备注']]
+    columns: [['vehicleLabel','车号'],['className','班级'],['teachers','班主任 / 配班老师'],['teacherPhones','老师电话'],['guides','研学导游'],['guidePhones','导游电话'],['classStudents','相关班级学生'],['boys','本车男生'],['girls','本车女生'],['vehicleStudents','本车学生'],['teacherCount','随车老师'],['guideCount','导游人数'],['vehicleTotal','本车人数'],['usableSeats','可用座位'],['emptySeats','空车位'],['vehicleModel','车型'],['plateNumber','车牌号'],['driver','司机'],['driverPhone','司机电话'],['arrangementState','安排状态'],['arrangementSummary','合班 / 拆班 / 空位'],['specialRequirements','特殊安排要求'],['notes','备注']]
   },
   lodging: {
     label: '住宿安排表', recordLabel: '住宿表', source: 'lodgingDetails', module: '住宿',
-    columns: [['lodgingName','酒店'],['checkInOn','入住日期'],['building','楼栋'],['floor','楼层'],['roomNumber','房间号'],['roomType','房型'],['capacity','容量'],['className','班级'],['gender','性别'],['role','角色'],['peopleCount','安排人数'],['crossClassReason','跨班拼房信息'],['notes','备注']]
+    columns: [['lodgingName','酒店'],['lodgingAddress','住宿地址'],['checkInOn','入住日期 / 晚次'],['building','楼栋'],['floor','楼层'],['roomNumber','房间号'],['roomType','房型'],['capacity','容量'],['emptyBeds','空床'],['className','班级'],['gender','性别'],['role','角色'],['peopleCount','安排人数'],['crossClassReason','跨班拼房信息'],['arrangementState','安排状态'],['arrangementSummary','状态说明'],['specialRequirements','特殊安排要求'],['notes','备注']]
   },
   meals: {
     label: '用餐安排表', recordLabel: '用餐表', source: 'mealDetails', module: '用餐',
-    columns: [['sessionName','餐次'],['restaurantName','餐厅'],['mealAt','用餐时间'],['tableNumber','桌号'],['seatsPerTable','每桌人数'],['className','班级'],['role','角色'],['peopleCount','人数'],['sharedTableReason','拼桌信息'],['suggestedTables','建议桌数'],['bookedTables','实际预订桌数'],['tableDifference','桌数差额'],['notes','备注']]
+    columns: [['sessionName','餐次'],['restaurantName','餐厅'],['mealAt','用餐时间'],['tableNumber','桌号'],['seatsPerTable','每桌人数'],['emptySeats','空位'],['className','班级'],['role','角色'],['peopleCount','人数'],['sharedTableReason','拼桌信息'],['suggestedTables','建议桌数'],['bookedTables','实际预订桌数'],['tableDifference','桌数差额'],['arrangementState','安排状态'],['arrangementSummary','状态说明'],['specialRequirements','特殊安排要求'],['notes','备注']]
   }
 };
 
@@ -73,17 +73,19 @@ function transportProjection(summary) {
     if (!groups.size) groups.set('', { classId: '', students: 0, boys: 0, girls: 0, teachers: 0, guides: [], notes: [] });
     const usableSeats = number(vehicle.capacity) - number(vehicle.safety_reserve);
     const vehicleTotal = number(vehicle.allocated);
-    for (const group of groups.values()) {
-      const classRow = classes.get(group.classId); const ridingTeachers = classRow?.teachers?.filter((row) => row.rides_vehicle) || [];
-      const teacherNames = group.teachers === ridingTeachers.length ? ridingTeachers.map((row) => row.name).join('、') : group.teachers ? `${group.teachers} 名（P08 按人数记录）` : '';
-      const teacherPhones = group.teachers === ridingTeachers.length ? ridingTeachers.map((row) => row.phone).filter(Boolean).join('、') : '';
-      rows.push({ vehicleLabel: vehicle.vehicle_label, className: classRow?.name || '', teachers: teacherNames, teacherPhones,
-        guides: group.guides.map((row) => row.name).filter(Boolean).join('、'), guidePhones: group.guides.map((row) => row.phone).filter(Boolean).join('、'),
-        classStudents: number(classRow?.student_total), boys: group.boys, girls: group.girls, vehicleStudents: group.students,
-        teacherCount: group.teachers, guideCount: group.guides.length, vehicleTotal, usableSeats, emptySeats: usableSeats - vehicleTotal,
-        vehicleModel: vehicle.vehicle_model, plateNumber: vehicle.plate_number, driver: vehicle.driver_name, driverPhone: vehicle.driver_phone,
-        notes: [vehicle.notes, ...group.notes].filter(Boolean).join('；') });
-    }
+    const values = [...groups.values()]; const classRows = values.map((group) => classes.get(group.classId)).filter(Boolean);
+    const ridingTeachers = classRows.flatMap((row) => row.teachers?.filter((teacher) => teacher.rides_vehicle) || []);
+    const teacherCount = values.reduce((sum, group) => sum + group.teachers, 0); const guideRows = values.flatMap((group) => group.guides);
+    rows.push({ vehicleLabel: vehicle.vehicle_label, className: classRows.map((row) => row.name).join('、'),
+      teachers: teacherCount === ridingTeachers.length ? ridingTeachers.map((row) => row.name).join('、') : teacherCount ? `${teacherCount} 名（P08 按人数记录）` : '',
+      teacherPhones: teacherCount === ridingTeachers.length ? ridingTeachers.map((row) => row.phone).filter(Boolean).join('、') : '',
+      guides: guideRows.map((row) => row.name).filter(Boolean).join('、'), guidePhones: guideRows.map((row) => row.phone).filter(Boolean).join('、'),
+      classStudents: classRows.reduce((sum, row) => sum + number(row.student_total), 0), boys: values.reduce((sum, group) => sum + group.boys, 0),
+      girls: values.reduce((sum, group) => sum + group.girls, 0), vehicleStudents: values.reduce((sum, group) => sum + group.students, 0),
+      teacherCount, guideCount: guideRows.length, vehicleTotal, usableSeats, emptySeats: usableSeats - vehicleTotal,
+      vehicleModel: vehicle.vehicle_model, plateNumber: vehicle.plate_number, driver: vehicle.driver_name, driverPhone: vehicle.driver_phone,
+      arrangementState: vehicle.arrangement_state, arrangementSummary: vehicle.arrangement_summary, specialRequirements: vehicle.special_requirements,
+      notes: [vehicle.notes, ...values.flatMap((group) => group.notes)].filter(Boolean).join('；') });
   }
   return { rows, totals: { vehicles: summary.transport.length,
     students: summary.transport.flatMap((row) => row.allocations).filter((row) => row.role === '学生').reduce((sum, row) => sum + number(row.people_count), 0),
@@ -102,9 +104,12 @@ function projectTable(repository, summary, type) {
   }
   if (type === 'transport') return transportProjection(summary);
   if (type === 'lodging') {
-    const rows = repository.lodgingDetails(summary.project.id).map((row) => ({ lodgingName: row.lodging_name, checkInOn: row.check_in_on, building: row.building,
+    const roomTotals = new Map(summary.lodging.map((room) => [room.id, number(room.capacity) - number(room.allocated)]));
+    const rows = repository.lodgingDetails(summary.project.id).map((row) => ({ lodgingName: row.lodging_name, lodgingAddress: row.lodging_address, checkInOn: row.check_in_on, building: row.building,
       floor: row.floor_label, roomNumber: row.room_number, roomType: row.room_type, capacity: number(row.capacity), className: row.class_name || '',
-      gender: row.gender || '', role: row.role || '', peopleCount: number(row.people_count), crossClassReason: row.cross_class_reason || '', notes: row.notes || '' }));
+      emptyBeds: roomTotals.get(row.id) ?? Math.max(0, number(row.capacity) - number(row.people_count)), gender: row.gender || '', role: row.role || '', peopleCount: number(row.people_count),
+      crossClassReason: row.cross_class_reason || '', arrangementState: row.arrangement_state, arrangementSummary: row.arrangement_summary,
+      specialRequirements: row.special_requirements, notes: row.notes || '' }));
     return { rows, totals: { people: rows.reduce((sum, row) => sum + row.peopleCount, 0), rooms: summary.lodging.length,
       capacity: summary.lodging.reduce((sum, row) => sum + number(row.capacity), 0),
       remaining: summary.lodging.reduce((sum, row) => sum + number(row.capacity) - number(row.allocated), 0) } };
@@ -113,11 +118,13 @@ function projectTable(repository, summary, type) {
     suggestedTables: Math.ceil(number(row.allocated) / Math.max(1, number(row.seats_per_table))), bookedTables: number(row.actual_tables),
     capacity: number(row.actual_tables) * number(row.seats_per_table), remaining: number(row.actual_tables) * number(row.seats_per_table) - number(row.allocated) }));
   const sessionTotals = new Map(sessions.map((row) => [row.name, row]));
+  const mealTableTotals = new Map(summary.meals.flatMap((session) => session.tables.map((table) => [table.id, number(table.allocated)])));
   const rows = repository.mealDetails(summary.project.id).map((row) => { const totals = sessionTotals.get(row.session_name) || {};
     return { sessionName: row.session_name, restaurantName: row.restaurant_name, mealAt: row.meal_at,
       tableNumber: row.table_number, seatsPerTable: number(row.seats_per_table), className: row.class_name || '', role: row.role || '',
-      peopleCount: number(row.people_count), sharedTableReason: row.shared_table_reason || '', suggestedTables: totals.suggestedTables || 0,
+      peopleCount: number(row.people_count), emptySeats: Math.max(0, number(row.seats_per_table) - number(mealTableTotals.get(row.id))), sharedTableReason: row.shared_table_reason || '', suggestedTables: totals.suggestedTables || 0,
       bookedTables: totals.bookedTables || 0, tableDifference: number(totals.bookedTables) - number(totals.suggestedTables),
+      arrangementState: row.arrangement_state, arrangementSummary: row.arrangement_summary, specialRequirements: row.special_requirements,
       notes: [row.session_notes, row.table_notes].filter(Boolean).join('；') }; });
   return { rows, totals: { sessions, people: sessions.reduce((sum, row) => sum + row.people, 0), tables: sessions.reduce((sum, row) => sum + row.bookedTables, 0),
     capacity: sessions.reduce((sum, row) => sum + row.capacity, 0), remaining: sessions.reduce((sum, row) => sum + row.remaining, 0) } };

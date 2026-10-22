@@ -63,9 +63,9 @@ export function parseTasksMarkdown(markdown) {
     const status = field(block, '状态');
     if (!TASK_STATUS.has(status)) throw new Error(`INVALID_TASK_STATUS:${heading[1]}`);
     const outcome = field(block, '结果');
-    const actualEvidence = fields(block, ['完成证据', '当前证据', '当前实现进度', '进度补充', '验收证据补充']);
+    const actualEvidence = fields(block, ['完成证据', '历史机器证据', '当前证据', '当前实现进度', '当前缺口', '进度补充', '验收证据补充']);
     const actual = (status === 'DONE' ? field(block, '完成证据') : field(block, '当前实现进度'))
-      || field(block, '当前证据') || field(block, '完成证据') || field(block, '进度补充')
+      || field(block, '当前证据') || field(block, '历史机器证据') || field(block, '完成证据') || field(block, '进度补充')
       || (status === 'DONE' ? '任务标记为已完成，详见任务验收证据' : '尚无已验证实现记录');
     const number = Number(heading[2]);
     return {

@@ -12,12 +12,17 @@ process.env.WORKBENCH_CERTIFICATES_PATH = join(runtime, 'certificates');
 const { createWorkbenchServer } = await import('../../src/server/index.mjs');
 
 const fullId = '430102199001011234';
+const expiryInDays = (days) => {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+};
 const guideInput = (index) => ({
   name: ['王晨', '李敏', '周妍', '陈浩', '刘芳', '赵琳'][index - 1], workPhone: `1380000000${index}`,
   gender: index % 2 ? '女' : '男', residenceArea: index < 4 ? '长沙' : '株洲', idNumber: fullId,
   guideLicenseNumber: `D-TEST-100${index}`, cooperationStatus: index === 6 ? '停止合作' : '可合作',
-  documents: [{ documentType: '身份证', expiresOn: index === 5 ? '' : index === 4 ? '2026-09-14' : index === 3 ? '2026-10-15' : '2027-12-31' },
-    { documentType: '导游证', expiresOn: index === 4 ? '2026-09-14' : '2027-12-31' }]
+  documents: [{ documentType: '身份证', expiresOn: index === 5 ? '' : index === 4 ? expiryInDays(-1) : index === 3 ? expiryInDays(15) : expiryInDays(365) },
+    { documentType: '导游证', expiresOn: index === 4 ? expiryInDays(-1) : expiryInDays(365) }]
 });
 
 test('P14/P15 API 建立 6 名导游、脱敏查询、受控查看和状态维护', async (context) => {

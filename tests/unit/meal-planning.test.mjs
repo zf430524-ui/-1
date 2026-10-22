@@ -44,3 +44,37 @@ test('单餐来源差异改变本餐人数并保留原因，不修改其他餐�
   const result = buildMealSuggestion({ classes, staff, sessions: [first, sessions[1]], includeStaff: true });
   assert.deepEqual(result.sessions.map((row) => row.suggestion.totalPeople), [135, 136]);
 });
+
+test('CR01 班级尾数组不可拆，按 10 人优先且共享桌最多两个班', () => {
+  const tailClasses = [['a','甲',46],['b','乙',27],['c','丙',4],['d','丁',3]].map(([id,name,student_total]) => ({ id, name, student_total }));
+  const result = buildMealSuggestion({ classes: tailClasses, staff: [], sessions: [sessions[0]], includeStaff: true }).sessions[0];
+  const shared = result.tables.filter((table) => table.allocations.filter((row) => row.role === '学生').length > 1);
+  assert.deepEqual(shared.map((table) => table.allocations.map((row) => row.peopleCount).sort((a,b) => a-b)), [[4,6],[3,7]]);
+  assert.ok(shared.every((table) => table.allocations.length === 2 && table.allocations.reduce((sum, row) => sum + row.peopleCount, 0) === 10));
+});
+
+test('CR01 尾数组组合按 10、9、8 人优先，不拆分原尾数组', () => {
+  const tailClasses = [['a','甲',16],['b','乙',13],['c','丙',15],['d','丁',3]].map(([id,name,student_total]) => ({ id, name, student_total }));
+  const result = buildMealSuggestion({ classes: tailClasses, staff: [], sessions: [sessions[0]], includeStaff: true }).sessions[0];
+  const partial = result.tables.filter((table) => table.allocations.some((row) => row.peopleCount < 10)).map((table) => table.allocations.reduce((sum, row) => sum + row.peopleCount, 0));
+  assert.deepEqual(partial, [9, 8]);
+});
+
+test('CR01 导游固定桌号使用结构化要求，容量不合法时返回阻断', () => {
+  const oneGuide = [{ source_type: 'project_guide', source_id: 'guide-fixed', role: '导游', default_meal_count: 1 }];
+  const legal = buildMealSuggestion({ classes: [{ id: 'a', name: '甲', student_total: 10 }], staff: oneGuide,
+    sessions: [{ ...sessions[0], specialRequirements: JSON.stringify({ role: '导游', type: 'fixed_table', value: 'A02' }) }], includeStaff: true }).sessions[0];
+  assert.ok(legal.tables.find((table) => table.tableNumber === 'A02').allocations.some((row) => row.role === '导游'));
+  const blocked = buildMealSuggestion({ classes: [{ id: 'a', name: '甲', student_total: 10 }], staff: oneGuide,
+    sessions: [{ ...sessions[0], specialRequirements: JSON.stringify({ role: '导游', type: 'fixed_table', value: 'A01' }) }], includeStaff: true }).sessions[0];
+  assert.equal(blocked.specialRequirementBlockers.length, 1);
+});
+
+test('CR01 导游固定桌号范围按结构化字段生效，普通备注不改变算法', () => {
+  const twoGuides = [1, 2].map((number) => ({ source_type: 'project_guide', source_id: `guide-range-${number}`, role: '导游', default_meal_count: 1 }));
+  const ranged = buildMealSuggestion({ classes: [{ id: 'a', name: '甲', student_total: 10 }], staff: twoGuides,
+    sessions: [{ ...sessions[0], notes: '导游尽量靠窗，此备注不参与算法', specialRequirements: JSON.stringify({ role: '导游', type: 'fixed_table_range', value: 'A02-A03' }) }], includeStaff: true }).sessions[0];
+  const guideTables = ranged.tables.filter((table) => table.allocations.some((row) => row.role === '导游')).map((table) => table.tableNumber);
+  assert.ok(guideTables.every((number) => ['A02', 'A03'].includes(number)));
+  assert.equal(ranged.specialRequirementBlockers.length, 0);
+});

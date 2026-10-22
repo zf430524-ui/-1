@@ -28,11 +28,11 @@ test('开发进度接口读取 tasks.md 并在文件变化后同步', async (con
   assert.match(await page.text(), /工作台开发进度/);
 
   const first = await (await fetch(`${base}/api/dev-progress`, { headers })).json();
-  assert.deepEqual({ total: first.summary.total, done: first.summary.DONE, review: first.summary.REVIEW, progress: first.summary.IN_PROGRESS, todo: first.summary.TODO }, { total: 30, done: 24, review: 2, progress: 0, todo: 4 });
+  assert.deepEqual({ total: first.summary.total, done: first.summary.DONE, review: first.summary.REVIEW, progress: first.summary.IN_PROGRESS, todo: first.summary.TODO }, { total: 30, done: 24, review: 1, progress: 0, todo: 5 });
   assert.equal(first.check.state, 'passed');
   assert.equal(first.tasks.find((task) => task.id === 'T19').missing, '');
 
-  const changed = (await readFile(tasksPath, 'utf8')).replace('### T25 · 实现真实 Excel 生成和文件级验证\n\n- 状态：`REVIEW`', '### T25 · 实现真实 Excel 生成和文件级验证\n\n- 状态：`IN_PROGRESS`');
+  const changed = (await readFile(tasksPath, 'utf8')).replace('### T25 · 实现真实 Excel 生成和文件级验证\n\n- 状态：`TODO`', '### T25 · 实现真实 Excel 生成和文件级验证\n\n- 状态：`IN_PROGRESS`');
   await writeFile(tasksPath, changed);
   const second = await (await fetch(`${base}/api/dev-progress`, { headers })).json();
   assert.equal(second.summary.TODO, 4);

@@ -58,6 +58,21 @@ test('P16/P17 四类表共用当前项目投影，保险脱敏且关键合计一
   assert.deepEqual(f.exports.preview(f.project.id, 'meals').data.totals.sessions, [{ name: '午餐', restaurantName: '脱敏餐厅', people: 13, suggestedTables: 2, bookedTables: 2, capacity: 20, remaining: 7 }]);
 });
 
+test('CR01 同一酒店同址多晚共用一个住宿工作表并按日期分组且不含姓名', async (context) => {
+  const f = setup(context); assert.equal(f.business.updateProject(f.project.id, { endsOn: '2026-10-12' }).ok, true);
+  const current = f.business.summary(f.project.id); const resources = current.lodging.map((room) => ({ lodgingName: room.lodging_name, lodgingAddress: '脱敏路 1 号', checkInOn: '2026-10-10', building: room.building,
+    floorLabel: room.floor_label, roomNumber: room.room_number, roomType: room.room_type, capacity: room.capacity, genderRule: room.gender_rule, allocations: [] }));
+  const rooms = [...resources, ...resources.map((room) => ({ ...room, checkInOn: '2026-10-11' }))];
+  const suggestion = f.business.suggestLodging(f.project.id, { rooms }); assert.equal(suggestion.ok, true); assert.equal(f.business.saveLodging(f.project.id, suggestion.data.rooms).ok, true);
+  const preview = f.exports.preview(f.project.id, 'lodging'); assert.equal(preview.ok, true);
+  assert.deepEqual([...new Set(preview.data.rows.map((row) => row.checkInOn))], ['2026-10-10','2026-10-11']);
+  assert.ok(preview.data.rows.every((row) => row.lodgingAddress === '脱敏路 1 号'));
+  assert.equal(JSON.stringify(preview.data.rows).includes('测试老师'), false); assert.equal(JSON.stringify(preview.data.rows).includes('测试导游'), false);
+  const exported = await f.exports.exportFile(f.project.id, 'lodging', { previewVersion: preview.data.dataVersion }); assert.equal(exported.ok, true);
+  const workbook = new ExcelJS.Workbook(); await workbook.xlsx.readFile(join(f.directory, f.project.id, exported.data.filename));
+  assert.equal(workbook.worksheets.length, 1); assert.equal(workbook.worksheets[0].name, '住宿安排表');
+});
+
 test('源数据变化后快照版本立即过期，旧版本和缺失版本均不能导出', async (context) => {
   const f = setup(context); const preview = f.exports.preview(f.project.id, 'transport').data;
   assert.equal(f.exports.previewStatus(f.project.id, 'transport', preview.dataVersion).data.stale, false);
@@ -82,9 +97,9 @@ test('四类 Excel 写入受控目录并回读字段、中文、合计、哈希�
   const f = setup(context); const fullId = '430102199001011234'; const fullLicense = 'D-T25-5678';
   const expectedHeaders = {
     insurance: ['导游姓名','身份证号码','联系电话','导游证号码'],
-    transport: ['车号','班级','班主任 / 配班老师','老师电话','研学导游','导游电话','班级学生','男生','女生','本车学生','随车老师','导游人数','本车人数','可用座位','空车位','车型','车牌号','司机','司机电话','备注'],
-    lodging: ['酒店','入住日期','楼栋','楼层','房间号','房型','容量','班级','性别','角色','安排人数','跨班拼房信息','备注'],
-    meals: ['餐次','餐厅','用餐时间','桌号','每桌人数','班级','角色','人数','拼桌信息','建议桌数','实际预订桌数','桌数差额','备注']
+    transport: ['车号','班级','班主任 / 配班老师','老师电话','研学导游','导游电话','相关班级学生','本车男生','本车女生','本车学生','随车老师','导游人数','本车人数','可用座位','空车位','车型','车牌号','司机','司机电话','安排状态','合班 / 拆班 / 空位','特殊安排要求','备注'],
+    lodging: ['酒店','住宿地址','入住日期 / 晚次','楼栋','楼层','房间号','房型','容量','空床','班级','性别','角色','安排人数','跨班拼房信息','安排状态','状态说明','特殊安排要求','备注'],
+    meals: ['餐次','餐厅','用餐时间','桌号','每桌人数','空位','班级','角色','人数','拼桌信息','建议桌数','实际预订桌数','桌数差额','安排状态','状态说明','特殊安排要求','备注']
   };
   const results = {};
   const manifest = [];

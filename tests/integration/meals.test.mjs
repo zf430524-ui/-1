@@ -71,3 +71,22 @@ test('P10 单餐差异只改变指定餐次，不含餐项目始终不创建记�
   assert.equal(fixture.business.suggestMeals(day.id, { sessions: mealDrafts() }).error.code, 'MEALS_NOT_APPLICABLE');
   assert.equal(fixture.repository.counts(day.id).meals, 0);
 });
+
+test('CR01 用餐局部调整只改变所选桌并支持人工确认锁定', (context) => {
+  const fixture = setup(context); const final = fixture.business.suggestMeals(fixture.project.id, { sessions: mealDrafts(), includeStaff: true }).data.sessions;
+  let saved = fixture.business.saveMeals(fixture.project.id, final).data; const selectedId = saved.meals[0].tables[0].id; const untouchedId = saved.meals[0].tables[1].id;
+  const adjusted = fixture.business.adjustArrangement(fixture.project.id, 'meals', { selectedIds: [selectedId] });
+  assert.equal(adjusted.ok, true); assert.equal(adjusted.data.localBlockers.length, 0);
+  assert.equal(adjusted.data.sessions[0].tables.find((row) => row.id === selectedId).arrangementState, '调整中');
+  assert.equal(adjusted.data.sessions[0].tables.find((row) => row.id === untouchedId).arrangementState, '自动安排');
+  saved = fixture.business.saveMeals(fixture.project.id, adjusted.data.sessions, { confirmedIds: [selectedId] }).data;
+  const confirmed = saved.meals[0].tables.find((row) => row.id === selectedId); assert.equal(confirmed.arrangement_state, '人工确认');
+  assert.equal(fixture.business.adjustArrangement(fixture.project.id, 'meals', { selectedIds: [selectedId] }).error.code, 'ARRANGEMENT_LOCKED');
+  const rerun = fixture.business.suggestMeals(fixture.project.id, { sessions: saved.meals, includeStaff: true });
+  assert.equal(rerun.ok, true); assert.equal(rerun.data.sessions[0].tables.find((row) => row.id === selectedId).arrangementState, '人工确认');
+  const unlocked = fixture.business.unlockArrangement(fixture.project.id, 'meals', selectedId); assert.equal(unlocked.ok, true);
+  const unlockedTable = unlocked.data.meals[0].tables.find((row) => row.id === selectedId); assert.equal(unlockedTable.arrangement_state, '调整中');
+  assert.deepEqual(unlockedTable.allocations, confirmed.allocations, '解锁不得立即改写原就座分配');
+  assert.ok(unlocked.data.exceptions.some((row) => row.code === 'ARRANGEMENT_IN_PROGRESS' && row.source_id === selectedId && row.status === '待处理'));
+  assert.equal(fixture.business.adjustArrangement(fixture.project.id, 'meals', { selectedIds: [selectedId] }).ok, true);
+});

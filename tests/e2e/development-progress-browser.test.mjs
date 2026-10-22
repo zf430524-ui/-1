@@ -23,12 +23,11 @@ test('本地开发进度页面在 1366×768 显示汇总、缺口并可筛选', 
   await client.waitFor(`document.querySelectorAll('#task-rows tr').length===30`);
   const initial = await client.evaluate(`({title:document.querySelector('h1')?.textContent,cards:[...document.querySelectorAll('.summary-card strong')].map((node)=>node.textContent),t20:[...document.querySelectorAll('#task-rows tr')].find((row)=>row.querySelector('.task-id')?.textContent==='T20')?.textContent||'',overflow:document.documentElement.scrollWidth>innerWidth})`);
   assert.equal(initial.title, '工作台开发进度');
-  assert.deepEqual(initial.cards, ['30', '24', '2', '0', '4']);
+  assert.deepEqual(initial.cards, ['30', '24', '1', '0', '5']);
   assert.match(initial.t20, /P09 已接入/);
   assert.equal(initial.overflow, false);
-  await client.evaluate(`(()=>{const filter=document.querySelector('#status-filter');filter.value='REVIEW';filter.dispatchEvent(new Event('change'));return true})()`);
-  await client.waitFor(`document.querySelectorAll('#task-rows tr').length===2`);
-  assert.match(await client.evaluate(`document.querySelector('#task-rows').textContent`), /T16/);
+  await client.evaluate(`(()=>{const filter=document.querySelector('#status-filter');filter.value='TODO';filter.dispatchEvent(new Event('change'));return true})()`);
+  await client.waitFor(`document.querySelectorAll('#task-rows tr').length===5`);
   assert.match(await client.evaluate(`document.querySelector('#task-rows').textContent`), /T25/);
   const t25FollowUps = await client.evaluate(`[...document.querySelectorAll('#task-rows tr')].find((row)=>row.querySelector('.task-id')?.textContent==='T25') ? [...[...document.querySelectorAll('#task-rows tr')].find((row)=>row.querySelector('.task-id')?.textContent==='T25').querySelectorAll('.follow-up-tag')].map((node)=>({text:node.textContent,color:getComputedStyle(node).backgroundColor})) : []`);
   assert.deepEqual(t25FollowUps.map((item) => item.text), ['保险名单 · 待修改', '乘车安排表 · 待修改', '住宿安排表 · 待修改', '用餐安排表 · 待修改']);

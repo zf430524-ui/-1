@@ -296,15 +296,16 @@ export function createBusinessRepository(db) {
 
   function replaceTransport(projectId, vehicles, now) {
     db.prepare('DELETE FROM transport_sheet_rows WHERE project_id=?').run(projectId);
-    const rowInsert = db.prepare(`INSERT INTO transport_sheet_rows(id,project_id,vehicle_label,plate_number,capacity,safety_reserve,driver_name,driver_phone,driver_gender,driver_needs_lodging,driver_joins_default_meals,notes,fleet_name,vehicle_model,created_at,updated_at)
-      VALUES (@id,@projectId,@label,@plate,@capacity,@reserve,@driverName,@driverPhone,@driverGender,@driverLodging,@driverMeals,@notes,@fleetName,@vehicleModel,@createdAt,@updatedAt)`);
+    const rowInsert = db.prepare(`INSERT INTO transport_sheet_rows(id,project_id,vehicle_label,plate_number,capacity,safety_reserve,driver_name,driver_phone,driver_gender,driver_needs_lodging,driver_joins_default_meals,notes,fleet_name,vehicle_model,arrangement_state,special_requirements,arrangement_summary,created_at,updated_at)
+      VALUES (@id,@projectId,@label,@plate,@capacity,@reserve,@driverName,@driverPhone,@driverGender,@driverLodging,@driverMeals,@notes,@fleetName,@vehicleModel,@arrangementState,@specialRequirements,@arrangementSummary,@createdAt,@updatedAt)`);
     const allocationInsert = db.prepare(`INSERT INTO transport_allocations(id,transport_row_id,class_id,role,people_count,notes,boys_count,girls_count,project_guide_id,created_at,updated_at)
       VALUES (@id,@rowId,@classId,@role,@peopleCount,@notes,@boysCount,@girlsCount,@projectGuideId,@createdAt,@updatedAt)`);
     for (const vehicle of vehicles) {
       const rowId = vehicle.id || createId('vehicle');
       rowInsert.run({ id: rowId, projectId, label: vehicle.vehicleLabel, plate: vehicle.plateNumber || '', capacity: vehicle.capacity, reserve: vehicle.safetyReserve || 0,
         driverName: vehicle.driverName, driverPhone: vehicle.driverPhone, driverGender: vehicle.driverGender || '未填写', driverLodging: vehicle.driverNeedsLodging ? 1 : 0,
-        driverMeals: vehicle.driverJoinsDefaultMeals ? 1 : 0, notes: vehicle.notes || '', fleetName: vehicle.fleetName || '', vehicleModel: vehicle.vehicleModel || '', ...nowFields(now) });
+        driverMeals: vehicle.driverJoinsDefaultMeals ? 1 : 0, notes: vehicle.notes || '', fleetName: vehicle.fleetName || '', vehicleModel: vehicle.vehicleModel || '',
+        arrangementState: vehicle.arrangementState || '自动安排', specialRequirements: vehicle.specialRequirements || '', arrangementSummary: vehicle.arrangementSummary || '', ...nowFields(now) });
       for (const item of vehicle.allocations || []) allocationInsert.run({ id: item.id || createId('transport_allocation'), rowId, classId: item.classId || null,
         role: item.role, peopleCount: item.peopleCount, notes: item.notes || '', boysCount: item.boysCount || 0, girlsCount: item.girlsCount || 0,
         projectGuideId: item.projectGuideId || null, ...nowFields(now) });
@@ -313,14 +314,15 @@ export function createBusinessRepository(db) {
 
   function replaceLodging(projectId, rooms, now) {
     db.prepare('DELETE FROM lodging_sheet_rows WHERE project_id=?').run(projectId);
-    const rowInsert = db.prepare(`INSERT INTO lodging_sheet_rows(id,project_id,lodging_name,check_in_on,building,floor_label,room_number,room_type,capacity,gender_rule,notes,created_at,updated_at)
-      VALUES (@id,@projectId,@name,@date,@building,@floor,@room,@type,@capacity,@gender,@notes,@createdAt,@updatedAt)`);
+    const rowInsert = db.prepare(`INSERT INTO lodging_sheet_rows(id,project_id,lodging_name,lodging_address,check_in_on,building,floor_label,room_number,room_type,capacity,gender_rule,notes,arrangement_state,special_requirements,arrangement_summary,created_at,updated_at)
+      VALUES (@id,@projectId,@name,@address,@date,@building,@floor,@room,@type,@capacity,@gender,@notes,@arrangementState,@specialRequirements,@arrangementSummary,@createdAt,@updatedAt)`);
     const allocationInsert = db.prepare(`INSERT INTO lodging_allocations(id,lodging_row_id,class_id,role,gender,people_count,cross_class_reason,created_at,updated_at)
       VALUES (@id,@rowId,@classId,@role,@gender,@peopleCount,@reason,@createdAt,@updatedAt)`);
     for (const room of rooms) {
       const rowId = room.id || createId('room');
-      rowInsert.run({ id: rowId, projectId, name: room.lodgingName, date: room.checkInOn, building: room.building || '', floor: room.floorLabel || '', room: room.roomNumber,
-        type: room.roomType, capacity: room.capacity, gender: room.genderRule, notes: room.notes || '', ...nowFields(now) });
+      rowInsert.run({ id: rowId, projectId, name: room.lodgingName, address: room.lodgingAddress || '', date: room.checkInOn, building: room.building || '', floor: room.floorLabel || '', room: room.roomNumber,
+        type: room.roomType, capacity: room.capacity, gender: room.genderRule, notes: room.notes || '', arrangementState: room.arrangementState || '自动安排',
+        specialRequirements: room.specialRequirements || '', arrangementSummary: room.arrangementSummary || '', ...nowFields(now) });
       for (const item of room.allocations || []) allocationInsert.run({ id: item.id || createId('lodging_allocation'), rowId, classId: item.classId || null, role: item.role,
         gender: item.gender, peopleCount: item.peopleCount, reason: item.crossClassReason || '', ...nowFields(now) });
     }
@@ -328,19 +330,19 @@ export function createBusinessRepository(db) {
 
   function replaceMeals(projectId, sessions, now) {
     db.prepare('DELETE FROM meal_sessions WHERE project_id=?').run(projectId);
-    const sessionInsert = db.prepare(`INSERT INTO meal_sessions(id,project_id,name,restaurant_name,meal_at,seats_per_table,booked_tables,notes,created_at,updated_at)
-      VALUES (@id,@projectId,@name,@restaurant,@mealAt,@seats,@tables,@notes,@createdAt,@updatedAt)`);
-    const tableInsert = db.prepare('INSERT INTO meal_sheet_rows(id,meal_session_id,table_number,notes,created_at,updated_at) VALUES (?,?,?,?,?,?)');
+    const sessionInsert = db.prepare(`INSERT INTO meal_sessions(id,project_id,name,restaurant_name,meal_at,seats_per_table,booked_tables,notes,special_requirements,created_at,updated_at)
+      VALUES (@id,@projectId,@name,@restaurant,@mealAt,@seats,@tables,@notes,@specialRequirements,@createdAt,@updatedAt)`);
+    const tableInsert = db.prepare('INSERT INTO meal_sheet_rows(id,meal_session_id,table_number,notes,arrangement_state,special_requirements,arrangement_summary,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)');
     const allocationInsert = db.prepare(`INSERT INTO meal_allocations(id,meal_row_id,class_id,role,people_count,shared_table_reason,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)`);
     const overrideInsert = db.prepare(`INSERT INTO staff_meal_overrides(id,meal_session_id,source_type,source_id,difference_count,reason,created_at) VALUES (?,?,?,?,?,?,?)`);
     for (const session of sessions) {
       const sessionId = session.id || createId('meal');
       sessionInsert.run({ id: sessionId, projectId, name: session.name, restaurant: session.restaurantName, mealAt: session.mealAt, seats: session.seatsPerTable || 10,
-        tables: session.tables.length, notes: session.notes || '', ...nowFields(now) });
+        tables: session.tables.length, notes: session.notes || '', specialRequirements: session.specialRequirements || '', ...nowFields(now) });
       for (const item of session.overrides || []) overrideInsert.run(item.id || createId('meal_override'), sessionId, item.sourceType, item.sourceId, item.differenceCount, item.reason, now);
       for (const table of session.tables) {
         const rowId = table.id || createId('meal_table');
-        tableInsert.run(rowId, sessionId, table.tableNumber, table.notes || '', now, now);
+        tableInsert.run(rowId, sessionId, table.tableNumber, table.notes || '', table.arrangementState || '自动安排', table.specialRequirements || '', table.arrangementSummary || '', now, now);
         for (const item of table.allocations || []) allocationInsert.run(item.id || createId('meal_allocation'), rowId, item.classId || null, item.role, item.peopleCount, item.sharedTableReason || '', now, now);
       }
     }
@@ -423,6 +425,24 @@ export function createBusinessRepository(db) {
   function mealRowProject(id) { return db.prepare('SELECT ms.project_id FROM meal_sheet_rows mr JOIN meal_sessions ms ON ms.id=mr.meal_session_id WHERE mr.id=?').get(id)?.project_id || null; }
   function mealTables(projectId) { return db.prepare(`SELECT mr.*,ms.seats_per_table,COALESCE(SUM(ma.people_count),0) AS allocated FROM meal_sheet_rows mr JOIN meal_sessions ms ON ms.id=mr.meal_session_id LEFT JOIN meal_allocations ma ON ma.meal_row_id=mr.id WHERE ms.project_id=? GROUP BY mr.id ORDER BY ms.meal_at,mr.table_number`).all(projectId); }
 
+  function unlockArrangement(projectId, module, rowId, summary, now) {
+    if (module === 'transport') return db.prepare(`UPDATE transport_sheet_rows SET arrangement_state='调整中',arrangement_summary=?,updated_at=?
+      WHERE id=? AND project_id=? AND arrangement_state='人工确认'`).run(summary, now, rowId, projectId).changes;
+    if (module === 'lodging') return db.prepare(`UPDATE lodging_sheet_rows SET arrangement_state='调整中',arrangement_summary=?,updated_at=?
+      WHERE id=? AND project_id=? AND arrangement_state='人工确认'`).run(summary, now, rowId, projectId).changes;
+    if (module === 'meals') return db.prepare(`UPDATE meal_sheet_rows SET arrangement_state='调整中',arrangement_summary=?,updated_at=?
+      WHERE id=? AND arrangement_state='人工确认' AND meal_session_id IN (SELECT id FROM meal_sessions WHERE project_id=?)`).run(summary, now, rowId, projectId).changes;
+    return 0;
+  }
+
+  function markConfirmedArrangementsStale(projectId, modules = ['transport','lodging','meals']) {
+    const changed = {};
+    if (modules.includes('transport')) changed.transport = db.prepare("UPDATE transport_sheet_rows SET arrangement_state='待重新确认' WHERE project_id=? AND arrangement_state='人工确认'").run(projectId).changes;
+    if (modules.includes('lodging')) changed.lodging = db.prepare("UPDATE lodging_sheet_rows SET arrangement_state='待重新确认' WHERE project_id=? AND arrangement_state='人工确认'").run(projectId).changes;
+    if (modules.includes('meals')) changed.meals = db.prepare("UPDATE meal_sheet_rows SET arrangement_state='待重新确认' WHERE arrangement_state='人工确认' AND meal_session_id IN (SELECT id FROM meal_sessions WHERE project_id=?)").run(projectId).changes;
+    return changed;
+  }
+
   function syncExceptions(projectId, issues, now) {
     const active = new Set(issues.map((x) => x.fingerprint));
     const prior = db.prepare("SELECT fingerprint FROM exceptions WHERE project_id=? AND status IN ('待处理','已确认例外')").all(projectId);
@@ -479,19 +499,19 @@ export function createBusinessRepository(db) {
     WHERE pg.project_id=? AND pg.handling_status='保留' AND EXISTS (
       SELECT 1 FROM guide_class_assignments assignment WHERE assignment.project_guide_id=pg.id
     ) ORDER BY pg.source_order`).all(projectId); }
-  function transportDetails(projectId) { return db.prepare(`SELECT tr.vehicle_label,tr.fleet_name,tr.vehicle_model,tr.plate_number,tr.capacity,tr.safety_reserve,tr.driver_name,tr.driver_phone,
+  function transportDetails(projectId) { return db.prepare(`SELECT tr.vehicle_label,tr.fleet_name,tr.vehicle_model,tr.plate_number,tr.capacity,tr.safety_reserve,tr.driver_name,tr.driver_phone,tr.arrangement_state,tr.special_requirements,tr.arrangement_summary,
       ta.role,ta.people_count,ta.boys_count,ta.girls_count,c.name AS class_name,COALESCE(pg.source_name,'') AS guide_name,COALESCE(pg.source_phone,'') AS guide_phone,ta.notes
     FROM transport_sheet_rows tr LEFT JOIN transport_allocations ta ON ta.transport_row_id=tr.id LEFT JOIN classes c ON c.id=ta.class_id
     LEFT JOIN project_guides pg ON pg.id=ta.project_guide_id WHERE tr.project_id=? ORDER BY tr.vehicle_label,c.name,ta.role`).all(projectId); }
-  function lodgingDetails(projectId) { return db.prepare(`SELECT lr.lodging_name,lr.check_in_on,lr.building,lr.floor_label,lr.room_number,lr.room_type,lr.capacity,lr.gender_rule,lr.notes,la.role,la.gender,la.people_count,c.name AS class_name,la.cross_class_reason
+  function lodgingDetails(projectId) { return db.prepare(`SELECT lr.id,lr.lodging_name,lr.lodging_address,lr.check_in_on,lr.building,lr.floor_label,lr.room_number,lr.room_type,lr.capacity,lr.gender_rule,lr.notes,lr.arrangement_state,lr.special_requirements,lr.arrangement_summary,la.role,la.gender,la.people_count,c.name AS class_name,la.cross_class_reason
     FROM lodging_sheet_rows lr LEFT JOIN lodging_allocations la ON la.lodging_row_id=lr.id LEFT JOIN classes c ON c.id=la.class_id WHERE lr.project_id=? ORDER BY lr.check_in_on,lr.room_number,c.name`).all(projectId); }
-  function mealDetails(projectId) { return db.prepare(`SELECT ms.name AS session_name,ms.restaurant_name,ms.meal_at,ms.seats_per_table,ms.notes AS session_notes,mr.table_number,mr.notes AS table_notes,ma.role,ma.people_count,c.name AS class_name,ma.shared_table_reason
+  function mealDetails(projectId) { return db.prepare(`SELECT mr.id,ms.name AS session_name,ms.restaurant_name,ms.meal_at,ms.seats_per_table,ms.notes AS session_notes,mr.table_number,mr.notes AS table_notes,mr.arrangement_state,mr.special_requirements,mr.arrangement_summary,ma.role,ma.people_count,c.name AS class_name,ma.shared_table_reason
     FROM meal_sessions ms JOIN meal_sheet_rows mr ON mr.meal_session_id=ms.id LEFT JOIN meal_allocations ma ON ma.meal_row_id=mr.id LEFT JOIN classes c ON c.id=ma.class_id WHERE ms.project_id=? ORDER BY ms.meal_at,mr.table_number,c.name`).all(projectId); }
 
   return Object.freeze({ project, projects, insertProject, updateProject, touchProject, setProjectStatus, projectReferences, removeProject, touchSchool, counts, replacePeople, classRemovalImpacts, createGuide, upsertGuideDocument,
     guideCandidates, matchRecruitmentEntry, createRecruitment, recruitmentBatches, assignGuide, guideConflict, guideConflicts, guideDocumentState, guideExpired,
     assignmentRows, classGuideCoverage, classAssignmentCount, setGuideHandling, withdrawGuide, replaceTransport, replaceLodging, replaceMeals,
     staffSources, classes, classesWithTeachers, manualStaff, teacherOwner, manualStaffProject, guideAssignments, projectGuide, classProject, transportRowProject, lodgingRowProject, mealSessionProject, mealRowProject,
-    transport, transportTotals, lodging, lodgingTotals, lodgingTotalsByDate, meals, mealTables, syncExceptions, exceptions, exceptionById, listExceptions, exceptionStats, certificateReminders, confirmException, activeBlockers, addExport, exports, exportById,
+    transport, transportTotals, lodging, lodgingTotals, lodgingTotalsByDate, meals, mealTables, unlockArrangement, markConfirmedArrangementsStale, syncExceptions, exceptions, exceptionById, listExceptions, exceptionStats, certificateReminders, confirmException, activeBlockers, addExport, exports, exportById,
     insuranceRows, transportDetails, lodgingDetails, mealDetails });
 }

@@ -4,13 +4,13 @@ import { migrate, openDatabase } from '../../src/db/migrate.mjs';
 import { createOperationLogRepository } from '../../src/db/repositories/operation-logs.mjs';
 import { createAuditService } from '../../src/services/audit.mjs';
 
-test('备份 ID 的随机段以 D 开头时不会被误判为导游证号', () => {
-  const value = 'backup-20260913T080000000Z-D4693058-b7eb-4e3e-9c60-2096dabced81';
+test('备份和业务对象 ID 的随机段以 D 开头时不会被误判为导游证号', () => {
+  const values = ['backup-20260913T080000000Z-D4693058-b7eb-4e3e-9c60-2096dabced81', 'vehicle_d0e8d0a2-5fb6-4d46-8957-4c7acb05061d'];
   const db = openDatabase(':memory:');
   try {
     migrate(db); const repository = createOperationLogRepository(db); const audit = createAuditService(repository, () => '2026-09-13T02:00:00.000Z');
-    audit.record({ operationType: '恢复', objectType: '本地备份', objectId: value, summary: '恢复完成', result: '成功' });
-    assert.equal(repository.list()[0].objectId, value);
+    values.forEach((value) => audit.record({ operationType: '恢复', objectType: '本地备份', objectId: value, summary: '恢复完成', result: '成功' }));
+    assert.deepEqual(new Set(repository.list().map((row) => row.objectId)), new Set(values));
   } finally { db.close(); }
 });
 
